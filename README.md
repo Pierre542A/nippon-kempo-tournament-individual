@@ -1,40 +1,88 @@
-# Nippon Kempo App (nippon-kempo-tournament)
+# Site Web Nippon Kempo Tournois
 
-A school project for a association
+## À propos
 
-## Install the dependencies
+Ce site web fait partie du projet de gestion des tournois de Nippon Kempo. Il permet aux utilisateurs de consulter le calendrier des tournois, de s'inscrire aux compétitions et de suivre leurs résultats en ligne.
+
+### Fonctionnalités
+
+- Calendrier interactif des tournois
+- Système d'inscription aux compétitions
+- Visualisation des résultats personnels
+- Interface d'administration des tournois
+- Gestion des comptes utilisateurs
+- Affichage des statistiques des compétitions
+
+## Technologies
+
+- Frontend: Vue.js avec Quasar Framework
+- Style: TailwindCSS
+- Backend: Node.js avec Fastify
+- Base de données: MySQL
+- Authentication: JWT
+
+## Installation
+
+1. Cloner le repository
 ```bash
-yarn
-# or
+git clone [URL_DU_REPO]
+cd nippon-kempo-web
+```
+
+2. Installer les dépendances
+```bash
 npm install
 ```
 
-### Start the app in development mode (hot-code reloading, error reporting, etc.)
+3. Configurer l'environnement
 ```bash
-quasar dev
+cp .env.example .env
+# Éditer le fichier .env avec vos configurations
 ```
 
-
-### Lint the files
+4. Lancer en développement
 ```bash
-yarn lint
-# or
-npm run lint
+npm run dev
 ```
 
+## Structure du projet
 
-### Format the files
-```bash
-yarn format
-# or
-npm run format
+```
+├── src/
+│   ├── components/    # Composants réutilisables
+│   ├── views/        # Pages du site
+│   ├── services/     # Services API
+│   ├── store/        # État global
+│   └── utils/        # Fonctions utilitaires
+├── public/           # Assets statiques
+└── tests/           # Tests unitaires
 ```
 
+## Rôles utilisateurs
 
-### Build the app for production
+- **Visiteur**: Consultation du calendrier
+- **Utilisateur**: Inscription aux tournois, consultation des résultats
+- **Administrateur**: Gestion des tournois et des utilisateurs
+- **Gestionnaire**: Administration des compétitions
+
+## Tests
+
 ```bash
-quasar build
+# Tests unitaires
+npm run test
+
+# Tests e2e
+npm run test:e2e
 ```
 
-### Customize the configuration
-See [Configuring quasar.config.js](https://v2.quasar.dev/quasar-cli-vite/quasar-config-js).
+## Déploiement
+
+```bash
+npm run build
+```
+Les fichiers de production seront générés dans le dossier `dist/`
+
+## Contact
+
+Pierre SPREDER
+Projet CESI École d'ingénieurs 2024-2025
