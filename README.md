@@ -43,11 +43,11 @@ quasar dev
 
 ```
 src/
-├── assets/          # Images, fonts et autres assets
-├── boot/           # Scripts de démarrage Quasar
-├── components/     # Composants Vue réutilisables
+├── assets/        # Images, fonts et autres assets
+├── boot/          # Scripts de démarrage Quasar
+├── components/    # Composants Vue réutilisables
 ├── css/           # Fichiers CSS/Stylesheets
-├── layouts/        # Layouts de l'application
+├── layouts/       # Layouts de l'application
 ├── pages/         # Pages de l'application
 ├── router/        # Configuration des routes
 ├── App.vue        # Composant racine
