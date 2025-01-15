@@ -12,10 +12,11 @@
         />
 
         <q-toolbar-title>
-          Quasar App
+          Nippon Kempo Tournament
         </q-toolbar-title>
 
         <div>Quasar v{{ $q.version }}</div>
+        
       </q-toolbar>
     </q-header>
 
@@ -25,10 +26,33 @@
       bordered
     >
       <q-list>
+        <router-link to="/">
+          <q-img
+            src="/src/assets/logo.png"
+            alt="Logo"
+            style="cursor: pointer;"
+          />
+        </router-link>
+
+        <div
+          class="q-pa-md"
+          style="width: 100%; display: flex; flex-direction: column; align-items: center; border-top: 1px solid lightgrey; border-bottom: 1px solid lightgrey;"
+        >
+          <span style="font-size: 20px; font-weight: bold;">SPREDER Pierre</span>
+          <span style="font-size: 12px; color: grey;">
+            <router-link 
+              to="/profile/edit"
+              style="font-size: 12px; color: grey; text-decoration: none;"
+              class="hover-underline"
+            >
+              modifier mon profil
+            </router-link>
+          </span>
+        </div>
+
         <q-item-label
           header
         >
-          Essential Links
         </q-item-label>
 
         <EssentialLink
@@ -51,47 +75,17 @@ import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink
 
 const linksList: EssentialLinkProps[] = [
   {
-    title: 'Docs',
-    caption: 'quasar.dev',
-    icon: 'school',
-    link: 'https://quasar.dev'
+    title: 'Mon Profil',
+    caption: 'Consultez vos informations personnelles.',
+    icon: 'account_circle',
+    link: '/profile',
   },
   {
-    title: 'Github',
-    caption: 'github.com/quasarframework',
-    icon: 'code',
-    link: 'https://github.com/quasarframework'
+    title: 'Tournois',
+    caption: 'Consultez les prochains tournois et inscrivez-vous !',
+    icon: 'view_list',
+    link: '/tournaments',
   },
-  {
-    title: 'Discord Chat Channel',
-    caption: 'chat.quasar.dev',
-    icon: 'chat',
-    link: 'https://chat.quasar.dev'
-  },
-  {
-    title: 'Forum',
-    caption: 'forum.quasar.dev',
-    icon: 'record_voice_over',
-    link: 'https://forum.quasar.dev'
-  },
-  {
-    title: 'Twitter',
-    caption: '@quasarframework',
-    icon: 'rss_feed',
-    link: 'https://twitter.quasar.dev'
-  },
-  {
-    title: 'Facebook',
-    caption: '@QuasarFramework',
-    icon: 'public',
-    link: 'https://facebook.quasar.dev'
-  },
-  {
-    title: 'Quasar Awesome',
-    caption: 'Community Quasar projects',
-    icon: 'favorite',
-    link: 'https://awesome.quasar.dev'
-  }
 ];
 
 const leftDrawerOpen = ref(false);
