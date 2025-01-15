@@ -15,10 +15,10 @@ Ce site web fait partie du projet de gestion des tournois de Nippon Kempo. Il pe
 
 ## Technologies
 
-- Frontend: Vue.js avec Quasar Framework
-- Style: TailwindCSS
-- Backend: Node.js avec Fastify
-- Base de données: MySQL
+- Frontend: Vue.js avec "Quasar Framework"
+- Style: CSS
+- Backend: Node.js avec "Fastify"
+- Base de données: MySQL2
 - Authentication: JWT
 
 ## Installation
@@ -34,28 +34,24 @@ cd nippon-kempo-web
 npm install
 ```
 
-3. Configurer l'environnement
+3. Lancer le développement
 ```bash
-cp .env.example .env
-# Éditer le fichier .env avec vos configurations
-```
-
-4. Lancer en développement
-```bash
-npm run dev
+quasar dev
 ```
 
 ## Structure du projet
 
 ```
-├── src/
-│   ├── components/    # Composants réutilisables
-│   ├── views/        # Pages du site
-│   ├── services/     # Services API
-│   ├── store/        # État global
-│   └── utils/        # Fonctions utilitaires
-├── public/           # Assets statiques
-└── tests/           # Tests unitaires
+src/
+├── assets/          # Images, fonts et autres assets
+├── boot/           # Scripts de démarrage Quasar
+├── components/     # Composants Vue réutilisables
+├── css/           # Fichiers CSS/Stylesheets
+├── layouts/        # Layouts de l'application
+├── pages/         # Pages de l'application
+├── router/        # Configuration des routes
+├── App.vue        # Composant racine
+└── app.d.ts       # Déclarations TypeScript
 ```
 
 ## Rôles utilisateurs
