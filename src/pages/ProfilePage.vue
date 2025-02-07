@@ -1,6 +1,6 @@
 <template>
   <q-page class="q-pa-md">
-    <h1>Mon Profil</h1>
+    <h1>Salut Pierre !</h1>
     <p>Informations personnelles et modifications.</p>
   </q-page>
 </template>

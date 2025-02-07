@@ -1,9 +1,9 @@
 {
   "name": "nippon-kempo-tournament",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "A school project for a association",
-  "productName": "Nippon Kempo Tournoiement",
-  "author": "contact@guastacom.com <contact@guastacom.com>",
+  "productName": "NIPPON KEMPO TOURNAMENT",
+  "author": "spreder.pierre@gmail.com <spreder.pierre@gmail.com>",
   "type": "module",
   "private": true,
   "scripts": {

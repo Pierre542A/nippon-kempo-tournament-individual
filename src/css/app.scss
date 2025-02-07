@@ -1,4 +1,28 @@
-// app global css in SCSS form
 .hover-underline:hover {
     text-decoration: underline !important;
+}
+
+h1 {
+    all: unset;
+    font-weight: bold;
+    font-size: 1.5em;
+    text-decoration: underline;
+}
+
+.hover-row:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.q-menu {
+  z-index: 2000 !important;
+}
+
+.q-dialog {
+  z-index: 3000 !important;
+}
+
+@media (max-width: 999px) {
+    .sort-button-label {
+        display: none;
+    }
 }

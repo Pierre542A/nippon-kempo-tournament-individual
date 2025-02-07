@@ -3,29 +3,41 @@ import type { RouteRecordRaw } from 'vue-router';
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    component: () => import('layouts/MainLayout.vue'), // Utilise MainLayout comme wrapper principal
+    component: () => import('layouts/MainLayout.vue'),
     children: [
       {
         path: '',
-        component: () => import('pages/IndexPage.vue'), // Page d'accueil
+        component: () => import('pages/IndexPage.vue'),
+        meta: {
+          title: 'Nippon Kempo Tournament'
+        }
       },
       {
         path: 'profile',
-        component: () => import('pages/ProfilePage.vue'), // Route pour "Mon Profil"
+        component: () => import('pages/ProfilePage.vue'),
+        meta: {
+          title: 'Mon Profil'
+        }
       },
       {
         path: 'profile/edit',
         component: () => import('pages/ProfileEditPage.vue'),
+        meta: {
+          title: 'Modification du profil'
+        }
       },
       {
         path: 'tournaments',
-        component: () => import('pages/TournamentsPage.vue'), // Route pour "Tournois"
+        component: () => import('pages/TournamentsPage.vue'),
+        meta: {
+          title: 'Tournois'
+        }
       },
     ],
   },
   {
     path: '/:catchAll(.*)*',
-    redirect: '/', // Redirige vers la page d'accueil en cas de route inconnue
+    redirect: '/',
   },
 ];
 

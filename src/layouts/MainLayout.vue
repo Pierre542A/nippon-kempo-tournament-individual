@@ -12,10 +12,10 @@
         />
 
         <q-toolbar-title>
-          Nippon Kempo Tournament
+          {{ currentTitle }}
         </q-toolbar-title>
 
-        <div>Quasar v{{ $q.version }}</div>
+        <div>CDA Cube #2</div>
         
       </q-toolbar>
     </q-header>
@@ -50,9 +50,7 @@
           </span>
         </div>
 
-        <q-item-label
-          header
-        >
+        <q-item-label header>
         </q-item-label>
 
         <EssentialLink
@@ -70,8 +68,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
+import { useRoute } from 'vue-router';
 import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink.vue';
+
+const route = useRoute();
+const leftDrawerOpen = ref(false);
+
+const currentTitle = computed(() => {
+  return route.meta.title as string || 'Nippon Kempo Tournament';
+});
 
 const linksList: EssentialLinkProps[] = [
   {
@@ -88,9 +94,7 @@ const linksList: EssentialLinkProps[] = [
   },
 ];
 
-const leftDrawerOpen = ref(false);
-
-function toggleLeftDrawer () {
+function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value;
 }
 </script>
