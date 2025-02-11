@@ -1,33 +1,32 @@
-.DS_Store
-.thumbs.db
-node_modules
-
+########################################
+#                                      #
+#         GENERATE BY QUASAR           #
+#                                      #
+########################################
+front-quasar/.DS_Store
+front-quasar/.thumbs.db
+front-quasar/node_modules
 # Quasar core related directories
-.quasar
-/dist
-/quasar.config.*.temporary.compiled*
-
+front-quasar/.quasar
+front-quasar//dist
+front-quasar//quasar.config.*.temporary.compiled*
 # Cordova related directories and files
-/src-cordova/node_modules
-/src-cordova/platforms
-/src-cordova/plugins
-/src-cordova/www
-
+front-quasar//src-cordova/node_modules
+front-quasar//src-cordova/platforms
+front-quasar//src-cordova/plugins
+front-quasar//src-cordova/www
 # Capacitor related directories and files
-/src-capacitor/www
-/src-capacitor/node_modules
-
+front-quasar//src-capacitor/www
+front-quasar//src-capacitor/node_modules
 # Log files
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
+front-quasar/npm-debug.log*
+front-quasar/yarn-debug.log*
+front-quasar/yarn-error.log*
 # Editor directories and files
-.idea
+front-quasar/.idea
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
-
 # local .env files
-.env
+front-quasar/.env

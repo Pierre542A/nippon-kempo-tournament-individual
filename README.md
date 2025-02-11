@@ -4,13 +4,12 @@
 
 Ce site web fait partie du projet de gestion des tournois de Nippon Kempo. Il permet aux utilisateurs de consulter le calendrier des tournois, de s'inscrire aux compétitions et de suivre leurs résultats en ligne.
 
-### Fonctionnalités
+### Fonctionnalités [à retravailler]
 
-- Calendrier interactif des tournois
 - Système d'inscription aux compétitions
 - Visualisation des résultats personnels
-- Interface d'administration des tournois
-- Gestion des comptes utilisateurs
+- Interface utilisateur des tournois
+- Gestion du compte utilisateurs
 - Affichage des statistiques des compétitions
 
 ## Technologies
@@ -21,7 +20,7 @@ Ce site web fait partie du projet de gestion des tournois de Nippon Kempo. Il pe
 - Base de données: MySQL2
 - Authentication: JWT
 
-## Installation
+## Installation [à retravailler]
 
 1. Cloner le repository
 ```bash
@@ -39,7 +38,7 @@ npm install
 quasar dev
 ```
 
-## Structure du projet
+## Structure du projet [à retravailler]
 
 ```
 src/
@@ -54,14 +53,14 @@ src/
 └── app.d.ts       # Déclarations TypeScript
 ```
 
-## Rôles utilisateurs
+## Rôles utilisateurs [à retravailler]
 
 - **Visiteur**: Consultation du calendrier
 - **Utilisateur**: Inscription aux tournois, consultation des résultats
 - **Administrateur**: Gestion des tournois et des utilisateurs
 - **Gestionnaire**: Administration des compétitions
 
-## Tests
+## Tests [à retravailler]
 
 ```bash
 # Tests unitaires
@@ -70,13 +69,6 @@ npm run test
 # Tests e2e
 npm run test:e2e
 ```
-
-## Déploiement
-
-```bash
-npm run build
-```
-Les fichiers de production seront générés dans le dossier `dist/`
 
 ## Contact
 
