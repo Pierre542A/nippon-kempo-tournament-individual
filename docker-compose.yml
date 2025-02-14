@@ -1,0 +1,74 @@
+services:
+  # --- MySQL ---
+  mysql-bdd:
+    image: mysql:8
+    container_name: mysql-bdd
+    restart: always
+    env_file: 
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./bdd-mysql2/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  # --- phpMyAdmin ---
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    restart: always
+    env_file: 
+      - .env
+    environment:
+      PMA_HOST: mysql-bdd
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "8081:80"
+    depends_on:
+      - mysql-bdd
+
+  # --- API Fastify ---
+  api-fastify:
+    build: ./api-fastify
+    container_name: fastify-api
+    restart: always
+    env_file:
+      - .env
+    environment:
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      JWT_SECRET: ${JWT_SECRET}
+      VITE_API_URL: ${VITE_API_URL}
+      MJ_APIKEY_PUBLIC: ${MJ_APIKEY_PUBLIC}
+      MJ_APIKEY_PRIVATE: ${MJ_APIKEY_PRIVATE}
+      RECAPTCHA_SECRET: ${RECAPTCHA_SECRET}
+      COOKIE_SECRET: ${COOKIE_SECRET}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mysql-bdd
+
+  # --- Front Quasar (mode dev) ---
+  front-quasar:
+    build: ./front-quasar
+    command: ["quasar", "dev", "--hostname", "0.0.0.0"]
+    environment:
+      - CHOKIDAR_USEPOLLING=1
+      - CHOKIDAR_INTERVAL=750
+      - VITE_API_URL=${VITE_API_URL}
+    volumes:
+      - ./front-quasar:/app
+      - /app/node_modules
+    ports:
+      - "8080:8080"
+
+volumes:
+  mysql_data:
+  front_node_modules:

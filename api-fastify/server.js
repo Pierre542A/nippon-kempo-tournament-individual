@@ -4,6 +4,11 @@ const path = require("path");
 require("dotenv").config();
 require('events').EventEmitter.defaultMaxListeners = 15;
 
+fastify.register(require("@fastify/cors"), {
+  origin: "*", // ou "http://localhost:8080" ou autre
+  methods: ["GET", "POST", "OPTIONS"],
+});
+
 const dbConfig = {
  host: process.env.MYSQL_HOST,
  user: process.env.MYSQL_USER,
