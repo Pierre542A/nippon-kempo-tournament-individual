@@ -3,10 +3,9 @@
 }
 
 h1 {
-    all: unset;
-    font-weight: bold;
-    font-size: 1.5em;
-    text-decoration: underline;
+  all: unset;
+  font-weight: bold;
+  font-size: 1.5em;
 }
 
 .hover-row:hover {
@@ -21,8 +20,72 @@ h1 {
   z-index: 3000 !important;
 }
 
+.profile-edit-card {
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.hover-btn {
+  transition: background-color 0.3s ease;
+}
+
+.hover-btn:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.avatar-hover {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.avatar-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.avatar-hover:hover .avatar-overlay {
+  opacity: 1;
+}
+
+.avatar-card {
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.avatar-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.avatar-selected {
+  border-color: var(--q-primary);
+  box-shadow: 0 0 0 2px var(--q-primary);
+}
+
+/* Pour forcer 5 images par ligne */
+.custom-avatar-cell {
+  flex: 0 0 20%;
+  max-width: 20%;
+  padding: 4px;
+}
+
+/* Améliorations du popup d'avatar */
+.avatar-dialog {
+  border-radius: 8px;
+}
+
 @media (max-width: 999px) {
-    .sort-button-label {
-        display: none;
-    }
+  .sort-button-label {
+    display: none;
+  }
 }

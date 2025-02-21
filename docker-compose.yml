@@ -4,7 +4,7 @@ services:
     image: mysql:8
     container_name: mysql-bdd
     restart: always
-    env_file: 
+    env_file:
       - .env
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -14,15 +14,14 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ./bdd-mysql2/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./bdd-mysql2:/docker-entrypoint-initdb.d
 
   # --- phpMyAdmin ---
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
     container_name: phpmyadmin
     restart: always
-    env_file: 
+    env_file:
       - .env
     environment:
       PMA_HOST: mysql-bdd
@@ -32,7 +31,7 @@ services:
     depends_on:
       - mysql-bdd
 
-  # --- API Fastify ---
+  # --- Fastify API ---
   api-fastify:
     build: ./api-fastify
     container_name: fastify-api
@@ -55,20 +54,23 @@ services:
     depends_on:
       - mysql-bdd
 
-  # --- Front Quasar (mode dev) ---
+  # --- Quasar Frontend (Dev Mode) ---
   front-quasar:
     build: ./front-quasar
-    command: ["quasar", "dev", "--hostname", "0.0.0.0"]
+    container_name: front-quasar
+    command: ["sh", "-c", "npm install && quasar dev --hostname 0.0.0.0"]
+
     environment:
-      - CHOKIDAR_USEPOLLING=1
-      - CHOKIDAR_INTERVAL=750
-      - VITE_API_URL=${VITE_API_URL}
+      CHOKIDAR_USEPOLLING: 1
+      CHOKIDAR_INTERVAL: 750
+      VITE_API_URL: ${VITE_API_URL}
+
     volumes:
       - ./front-quasar:/app
       - /app/node_modules
+
     ports:
       - "8080:8080"
 
 volumes:
   mysql_data:
-  front_node_modules:

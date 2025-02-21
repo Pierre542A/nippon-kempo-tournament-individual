@@ -45,7 +45,7 @@
 
             <div style="display: flex; flex-direction: column; align-items: center;">
               <span style="font-size: 20px; font-weight: bold;">
-                {{ username }}
+                {{ firstName }} {{ lastName }}
               </span>
               <span style="font-size: 12px; color: grey;">
                 <router-link
@@ -80,7 +80,7 @@
               <q-card-section class="row items-center q-pb-none">
                 <div class="text-h6">Connexion</div>
                 <q-space />
-                <q-btn icon="close" flat round dense v-close-popup />
+                <q-btn icon="close" flat round dense v-close-popup :disable="loading" />
               </q-card-section>
 
               <q-form @submit.prevent="handleLogin">
@@ -92,6 +92,7 @@
                     filled
                     class="q-mb-md"
                     lazy-rules
+                    :disable="loading"
                   >
                     <template v-slot:prepend>
                       <q-icon name="email" />
@@ -104,6 +105,7 @@
                     :type="isPwd ? 'password' : 'text'"
                     filled
                     lazy-rules
+                    :disable="loading"
                   >
                     <template v-slot:prepend>
                       <q-icon name="lock" />
@@ -124,12 +126,18 @@
                     flat
                     color="primary"
                     v-close-popup
+                    :disable="loading"
                   />
                   <q-btn
                     label="Se connecter"
                     color="primary"
                     type="submit"
-                  />
+                    :loading="loading"
+                  >
+                    <template v-slot:loading>
+                      <q-spinner-facebook />
+                    </template>
+                  </q-btn>
                 </q-card-actions>
               </q-form>
             </q-card>
@@ -144,7 +152,7 @@
           </q-item-section>
           <q-item-section>
             <q-item-label>Mon Profil</q-item-label>
-            <q-item-label caption>Consultez vos informations personnelles</q-item-label>
+            <q-item-label caption>Consultez vos informations personnelles, vos statistiques...</q-item-label>
           </q-item-section>
         </q-item>
 
@@ -168,13 +176,14 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import axios from 'axios'
 
 interface LoginResponse {
-  username?: string
-  token?: string
+  success: boolean
+  firstName: string
+  lastName: string
 }
 
 interface MyAxiosError extends Error {
@@ -195,27 +204,32 @@ function isAxiosError(error: unknown): error is MyAxiosError {
 }
 
 const route = useRoute()
+const router = useRouter()
 const currentTitle = computed(() => route.meta.title as string || 'Nippon Kempo Tournament')
 const $q = useQuasar()
+
 const leftDrawerOpen = ref(false)
 const isConnected = ref(false)
-const username = ref('')
+const firstName = ref('')
+const lastName = ref('')
 const showLoginDialog = ref(false)
 const isPwd = ref(true)
+const loading = ref(false)
+
 const loginForm = ref({
   email: '',
   password: ''
 })
 
-function toggleLeftDrawer () {
+function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value
 }
 
-function goLogin () {
+function goLogin() {
   showLoginDialog.value = true
 }
 
-async function handleLogin () {
+async function handleLogin() {
   if (!loginForm.value.email || !loginForm.value.password) {
     $q.notify({
       message: 'Veuillez remplir tous les champs pour vous connecter.',
@@ -227,26 +241,34 @@ async function handleLogin () {
     return
   }
 
+  loading.value = true
   const { email, password } = loginForm.value
-  console.log('[Login] Tentative de connexion avec :', { email, password })
 
   try {
     const response = await axios.post<LoginResponse>(
-      `${import.meta.env.VITE_API_URL}/auth/login`,
+      `${import.meta.env.VITE_API_URL}/login`,
       { email, password }
     )
     
-    username.value = response.data.username ?? 'Inconnu'
-    isConnected.value = true
-    showLoginDialog.value = false
+    if (response.data.success) {
+      firstName.value = response.data.firstName
+      lastName.value = response.data.lastName
+      isConnected.value = true
+      showLoginDialog.value = false
+      
+      loginForm.value = {
+        email: '',
+        password: ''
+      }
 
-    $q.notify({
-      message: 'Connexion réussie ! Bienvenue sur Nippon Kempo Tournament.',
-      color: 'positive',
-      position: 'bottom',
-      timeout: 3000,
-      icon: 'check_circle'
-    })
+      $q.notify({
+        message: 'Connexion réussie ! Bienvenue sur Nippon Kempo Tournament.',
+        color: 'positive',
+        position: 'bottom',
+        timeout: 3000,
+        icon: 'check_circle'
+      })
+    }
   } catch (err: unknown) {
     if (isAxiosError(err)) {
       if (err.response?.status === 401) {
@@ -291,16 +313,38 @@ async function handleLogin () {
         icon: 'error'
       })
     }
+  } finally {
+    loading.value = false
   }
 }
 
-function logout () {
-  isConnected.value = false
-  username.value = ''
-  $q.notify({
-    message: 'Déconnexion réussie',
-    color: 'info',
-    position: 'bottom'
-  })
+async function logout() {
+  try {
+    await axios.post(`${import.meta.env.VITE_API_URL}/logout`)
+    
+    isConnected.value = false
+    firstName.value = ''
+    lastName.value = ''
+    router.push('/login')
+    
+    $q.notify({
+      message: 'Déconnexion réussie',
+      color: 'info',
+      position: 'bottom'
+    })
+  } catch (error) {
+    console.error('Erreur de déconnexion:', error)
+    $q.notify({
+      message: 'Erreur lors de la déconnexion : ' + (error instanceof Error ? error.message : 'Erreur inconnue'),
+      color: 'negative',
+      position: 'bottom'
+    })
+  }
 }
 </script>
+
+<style scoped>
+.hover-underline:hover {
+  text-decoration: underline !important;
+}
+</style>

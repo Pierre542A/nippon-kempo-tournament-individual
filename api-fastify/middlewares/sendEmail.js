@@ -12,8 +12,8 @@ const sendEmail = async (recipientEmail, subject, htmlContent) => {
       Messages: [
         {
           From: {
-            Email: "dlf.sur.insta@gmail.com",
-            Name: "Sensation CBD",
+            Email: "noreply@sensation-cbd.com",
+            Name: "Nippon Kempo Tournament",
           },
           To: [{ Email: recipientEmail }],
           Subject: subject,

@@ -11,57 +11,77 @@ class UserController {
     this.userService = fastify.userService;
   }
 
-  async createUser(req, reply) {
+    
+  async login(req, reply) {
     try {
-      const userData = req.body;
-      const result = await this.userService.createUser(userData);
-      const userId = result.userId;
+      const { email, password } = req.body;
+      console.log('Login attempt for:', email);  // Log de debug
+  
+      if (!email || !password) {
+        return reply.status(400).send({
+          error: "Adresse email et mot de passe obligatoires."
+        });
+      }
 
-      const emailConfirmationToken = jwt.sign(
-        { user_id: userId },
-        this.jwtSecret,
-        { expiresIn: "1h" }
-      );
-
-      const userEmail = userData.user_email;
-      const userFirstName = userData.user_first_name;
-      const confirmationUrl = `${process.env.APP_URL}/email_confirmation?token=${emailConfirmationToken}`;
-
-      const subject = "Bienvenue sur Sensation CBD – Confirmez votre adresse email 🌱";
-      const htmlContent = `
-        <p>Bonjour ${userFirstName},<br><br>
-        Bienvenue parmi nous ! Merci de vous être inscrit(e) sur notre plateforme.<br><br>
-        Pour activer votre compte, veuillez confirmer votre adresse email en cliquant sur le bouton ci-dessous :<br><br>
-        <a href="${confirmationUrl}" style="color: white; background-color: #4caf50; text-decoration: none; font-weight: bold; border-radius: 5px; padding: 10px;">👉 C'est parti, j'active mon compte ! 👈</a><br><br>
-        <i>(Pour votre sécurité, ce lien expirera automatiquement 1 heure après la création de votre compte.)</i><br><br>
-        <b><u>Note :</u></b> Si vous n'êtes pas à l'origine de cette inscription, pas d'inquiétude ! Vous pouvez simplement ignorer cet email, et tout sera automatiquement supprimé sans que vous n'ayez à intervenir.<br><br>
-        Nous sommes ravis de vous compter parmi nos utilisateurs 🌿.<br><br>
-        Cordialement,<br>
-        Votre équipe Sensation CBD
-        </p>
-      `;
-
-      sendEmail(userEmail, subject, htmlContent);
-
-      const authToken = jwt.sign(
-        { user_id: userId, role: 5 },
+      console.log('Trying to get user from database...');
+      const user = await this.userService.getUserByEmail(email);
+      console.log('Database response:', user);
+  
+      if (!user || !(await bcrypt.compare(password, user.password))) {
+        return reply.status(401).send({
+          error: "Adresse email ou mot de passe incorrect."
+        });
+      }
+  
+      if (user.is_active === 0) {
+        await this.userService.reactivateUser(user.id);
+  
+        const subject = "Votre compte Nippon Kempo Tournament est de retour ! ✨";
+        const htmlContent = `
+          <p>Bonjour ${user.first_name},<br><br>
+          Bonne nouvelle ! Votre compte sur notre plateforme a été réactivé avec succès 🎉.<br><br>
+          Vous pouvez dès à présent vous connecter et profiter pleinement de nos services !<br><br>
+          Nous sommes ravis de vous retrouver parmi nous 🌟.<br><br>
+          Cordialement,<br>
+          Votre équipe Nippon Kempo Tournament.
+          </p>
+        `;
+  
+        await sendEmail(user.user_email, subject, htmlContent);
+      }
+  
+      const token = jwt.sign(
+        { id: user.id, role: user.role_id },
         this.jwtSecret,
         { expiresIn: "24h" }
       );
-
-      reply.setCookie("auth_token", authToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+  
+      reply.setCookie("auth_token", token, {
+        httpOnly: true,     // Le cookie n'est pas accessible via JavaScript (sécurité)
+        secure: false,       // Uniquement HTTPS
+        sameSite: "lax",    // "strict" ou "lax"
         path: "/",
-        maxAge: 24 * 60 * 60,
+        maxAge: 24 * 60 * 60, // 24 heures
       });
 
-      reply.send(result);
+      return reply.send({ 
+        success: true,
+        username: `${user.first_name} ${user.last_name}` // Ajout du username
+      });
     } catch (error) {
-      reply.status(400).send({ error: error.message });
+      console.error('Login error details:', {
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+        errno: error.errno
+      });
+      return reply.status(500).send({
+        error: "Une erreur interne est survenue. Veuillez réessayer plus tard."
+      });
     }
   }
+
+  //jusqu'a la c'est ok
 
   async confirmEmail(request, reply) {
     try {
@@ -153,66 +173,7 @@ class UserController {
       return reply.status(500).send({ error: "Erreur lors de l'envoi de l'email de confirmation" });
     }
   }  
-  
-  async login(req, reply) {
-    try {
-      const { user_email, user_password } = req.body;
-  
-      if (!user_email || !user_password) {
-        return reply.status(400).send({
-          error: "Adresse email et mot de passe obligatoires."
-        });
-      }
-  
-      const user = await this.userService.getUserByEmail(user_email);
-  
-      if (!user || !(await bcrypt.compare(user_password, user.user_password))) {
-        return reply.status(401).send({
-          error: "Adresse email ou mot de passe incorrect."
-        });
-      }
-  
-      if (user.user_active === 0) {
-        await this.userService.reactivateUser(user.user_id);
-  
-        const subject = "Votre compte Sensation CBD est de retour ! ✨";
-        const htmlContent = `
-          <p>Bonjour ${user.user_first_name},<br><br>
-          Bonne nouvelle ! Votre compte sur notre plateforme a été réactivé avec succès 🎉.<br><br>
-          Vous pouvez dès à présent vous connecter et profiter pleinement de nos services !<br><br>
-          Nous sommes ravis de vous retrouver parmi nous 🌟.<br><br>
-          Cordialement,<br>
-          Votre équipe Sensation CBD
-          </p>
-        `;
-  
-        await sendEmail(user.user_email, subject, htmlContent);
-  
-        user.user_active = 1;
-      }
-  
-      const token = jwt.sign(
-        { user_id: user.user_id, role: user.user_role_id },
-        this.jwtSecret,
-        { expiresIn: "24h" }
-      );
-  
-      reply.setCookie("auth_token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        path: "/",
-        maxAge: 24 * 60 * 60,
-      });
-  
-      return reply.send({ success: true });
-    } catch (error) {
-      return reply.status(500).send({
-        error: "Une erreur interne est survenue. Veuillez réessayer plus tard."
-      });
-    }
-  }
-  
+
   async getUserById(req, reply) {
     try {
       const user = await this.userService.getUserById(req.user.user_id);
