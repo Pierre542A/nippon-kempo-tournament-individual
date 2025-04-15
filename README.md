@@ -1,6 +1,6 @@
 # Système de Gestion des Tournois de Nippon Kempo
 
-![Logo Nippon Kempo](./src/assets/logo.png)
+![Logo Nippon Kempo](./front-quasar/src/assets/logo.png)
 
 ## 📋 Présentation
 
