@@ -1,18 +1,22 @@
 # Système de Gestion des Tournois de Nippon Kempo
 
-![Logo Nippon Kempo](./front-quasar/src/assets/logo.png)
+![Logo Nippon Kempo](./src/assets/logo.png)
 
 ## 📋 Présentation
 
-Ce projet est une plateforme web complète dédiée à la gestion des tournois de Nippon Kempo. Elle permet aux utilisateurs de consulter le calendrier des événements, de s'inscrire aux compétitions et de suivre leurs résultats en ligne dans une interface intuitive et responsive.
+Ce projet est composé de deux parties complémentaires :
+
+1. **Site Web Public** : Interface permettant aux utilisateurs de consulter le calendrier des événements, de s'inscrire aux compétitions et de suivre leurs résultats en ligne.
+
+2. **Back Office Collaboratif (version individuelle)** : Application de gestion interne avec des fonctionnalités supplémentaires par rapport au projet collaboratif, incluant un système de connexion et un gestionnaire de club.
 
 ## ✨ Fonctionnalités
 
 - **Gestion des tournois** : Calendrier des compétitions, détails des événements
-- **Système d'inscription** : Inscription des participants aux différentes catégories
-- **Suivi des résultats** : Tableau des scores et classements en temps réel
+- **Système d'inscription** : Inscription du participant connecté à différents tournois et catégories
+- **Suivi des résultats** : Historique des résultats et gagnants de chaque tournoi, catégorie et club
 - **Espace personnel** : Historique des participations et performances individuelles
-- **Administration** : Interface de gestion pour les organisateurs de tournois
+- **Gestionnaire de club** : Interface dédiée à la gestion des clubs et de leurs membres
 - **Statistiques** : Visualisation des données et analyse des compétitions
 
 ## 🛠️ Technologies
@@ -26,9 +30,9 @@ Ce projet est une plateforme web complète dédiée à la gestion des tournois d
 ### Backend
 - **Runtime** : Node.js
 - **Framework** : Fastify
-- **Base de données** : MySQL 2
+- **Base de données** : MySQL (avec librairie mysql2)
 - **Authentication** : JWT (JSON Web Tokens)
-- **Mailing** : Mailjet
+- **Mailing** : Mailjet avec API et email professionnel (certificats et protection anti-spam)
 
 ## 🚀 Installation
 
@@ -67,8 +71,7 @@ Ce projet est une plateforme web complète dédiée à la gestion des tournois d
    # Puis lancez le fichier start.bat (Windows)
    start.bat
    
-   # Ou si vous êtes sur Linux/Mac
-   ./start.sh
+   # Uniquement disponible pour Windows
    ```
 
 ## 📁 Structure du projet
@@ -102,6 +105,8 @@ src/
 
 ## 🧪 Tests
 
+Les commandes suivantes sont disponibles pour les tests, mais leur configuration spécifique peut nécessiter des ajustements :
+
 ```bash
 # Exécuter les tests unitaires
 npm run test
@@ -109,6 +114,8 @@ npm run test
 # Exécuter les tests end-to-end
 npm run test:e2e
 ```
+
+> Note: La configuration des tests peut nécessiter une adaptation en fonction de l'environnement.
 
 ## 📱 Compatibilité
 
@@ -123,4 +130,4 @@ NIPPON KEMPO 2025
 
 ---
 
-&copy; 2025 SPREDER Pierre | Tous droits réservés
+&copy; 2025 Pierre SPREDER | Tous droits réservés
