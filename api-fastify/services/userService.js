@@ -42,6 +42,71 @@ class UserService {
     return result;
   }
 
+  async getUserById(user_id) {
+    try {
+      const [rows] = await this.mysql.execute(
+        `SELECT 
+          id,
+          created_at,
+          id_grade,
+          id_role,
+          id_gender,
+          first_name,
+          last_name,
+          birth_date,
+          weight,
+          nationality,
+          id_club,
+          id_tournament_waiting,
+          email,
+          phone,
+          password,
+          is_active
+        FROM users 
+        WHERE id = ?`,
+        [user_id]
+      );
+      return rows[0];
+    } catch (error) {
+      console.error('Erreur SQL getUserById :', error);
+      throw new Error(`Erreur lors de la récupération de l'utilisateur par ID: ${error.message}`);
+    }
+  }
+
+  async createUser(userData) {
+    try {
+      const [existingUser] = await this.mysql.execute(
+        `SELECT id FROM users WHERE email = ?`,
+        [userData.email]
+      );
+  
+      if (existingUser.length > 0) {
+        throw new Error("Cette adresse email est déjà utilisée.");
+      }
+  
+      const [result] = await this.mysql.execute(
+        `INSERT INTO users
+          (first_name, last_name, email, password, birth_date, weight, phone, nationality, id_gender, id_role, created_at, is_active)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 3, NOW(), 1)`,
+        [
+          userData.first_name,
+          userData.last_name,
+          userData.email,
+          userData.user_password,
+          userData.birth_date,
+          userData.weight,
+          userData.phone || '',
+          userData.nationality,
+          userData.id_gender
+        ]
+      );
+  
+      return { id: result.insertId };
+    } catch (error) {
+      throw new Error('Erreur création utilisateur : ' + error.message);
+    }
+  }  
+  
   //jusqu'a la c'est ok
 
   async confirmUserEmail(user_id) {
@@ -56,32 +121,7 @@ class UserService {
     } catch (error) {
       throw new Error(`Erreur lors de la confirmation de l'email: ${error.message}`);
     }
-  }
-
-  async getUserById(user_id) {
-    try {
-      const [rows] = await this.mysql.execute(
-        `SELECT 
-          user_id,
-          user_first_name,
-          user_last_name,
-          user_age,
-          user_sex,
-          user_email,
-          user_email_confirmed,
-          user_newsletter,
-          user_role_id,
-          user_password,
-          user_active  
-        FROM users 
-        WHERE user_id = ?`,
-        [user_id]
-      );
-      return rows[0];
-    } catch (error) {
-      throw new Error(`Erreur lors de la récupération de l'utilisateur par ID: ${error.message}`);
-    }
-  }
+  }  
 
   async updateUser(user_id, data) {
     try {

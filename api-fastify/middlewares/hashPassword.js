@@ -4,8 +4,8 @@ const hashPasswordMiddleware = async (request, reply) => {
   if (request.body && request.body.user_password) {
     const password = request.body.user_password;
 
-    const minLength = 6;
-    const saltRounds = 7;
+    const minLength = 8;
+    const saltRounds = 12;
     const noSpacesOrInvisible = /^\S+$/;
 
     if (password.length < minLength) {

@@ -4,10 +4,10 @@ require("dotenv").config();
 require('events').EventEmitter.defaultMaxListeners = 15;
 
 fastify.register(require("@fastify/cors"), {
-  origin: "*", // ou "http://localhost:8080" ou autre
+  origin: "http://localhost:8080",
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  credentials: true, // Important pour les cookies
-  allowedHeaders: ['Content-Type', 'Authorization'] // Headers autorisés
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization']
 });
 
 const dbConfig = {

@@ -12,7 +12,7 @@ const sendEmail = async (recipientEmail, subject, htmlContent) => {
       Messages: [
         {
           From: {
-            Email: "noreply@sensation-cbd.com",
+            Email: "noreply@lateliercbd.com",
             Name: "Nippon Kempo Tournament",
           },
           To: [{ Email: recipientEmail }],
