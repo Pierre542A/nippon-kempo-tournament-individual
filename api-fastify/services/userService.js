@@ -45,25 +45,31 @@ class UserService {
   async getUserById(user_id) {
     try {
       const [rows] = await this.mysql.execute(
-        `SELECT 
-          id,
-          created_at,
-          id_grade,
-          id_role,
-          id_gender,
-          first_name,
-          last_name,
-          birth_date,
-          weight,
-          nationality,
-          id_club,
-          id_tournament_waiting,
-          email,
-          phone,
-          password,
-          is_active
-        FROM users 
-        WHERE id = ?`,
+        `
+        SELECT
+          u.id,
+          u.created_at,
+          u.id_grade,
+          g.name   AS grade_name,
+          u.id_role,
+          u.id_gender,
+          u.first_name,
+          u.last_name,
+          u.birth_date,
+          u.weight,
+          u.nationality,
+          u.id_club,
+          c.name   AS club_name,
+          u.id_tournament_waiting,
+          u.email,
+          u.phone,
+          u.password,
+          u.is_active
+        FROM users u
+        LEFT JOIN grades g ON u.id_grade = g.id
+        LEFT JOIN clubs  c ON u.id_club   = c.id
+        WHERE u.id = ?
+        `,
         [user_id]
       );
       return rows[0];
@@ -71,7 +77,7 @@ class UserService {
       console.error('Erreur SQL getUserById :', error);
       throw new Error(`Erreur lors de la récupération de l'utilisateur par ID: ${error.message}`);
     }
-  }
+  }  
 
   async createUser(userData) {
     try {

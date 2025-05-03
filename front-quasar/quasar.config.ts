@@ -2,7 +2,9 @@ import { configure } from 'quasar/wrappers'
 
 export default configure(() => {
   return {
-    boot: [],
+    boot: [
+      'pinia',
+    ],
     css: ['app.scss'],
     extras: [
       'roboto-font',

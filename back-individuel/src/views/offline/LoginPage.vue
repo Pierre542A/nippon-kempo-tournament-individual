@@ -1,11 +1,11 @@
 <template>
   <div class="login-wrapper">
     <!-- logo centre en haut -->
-    <img src="@/assets/logo.png" alt="logo" class="logo" />
 
     <!-- carte de connexion centree -->
     <VaCard class="login-card">
       <!-- titre -->
+      <img src="@/assets/logo.png" alt="logo" class="logo" />
       <h1 class="title">NIPPON KEMPO</h1>
 
       <!-- formulaire de connexion -->
@@ -94,6 +94,7 @@ const handleLogin = () => {
   display: flex;
   height: 70vh;
   align-items: center;
+  justify-content: center;  /* Ajoutez cette ligne */
   background: url("@/assets/img/background.svg") no-repeat center center;
   background-size: cover;
   padding: 10px;

@@ -18,8 +18,8 @@
       <h1 class="title">NIPPON KEMPO</h1>
 
       <VaForm @submit.prevent="login">
-        <VaInput v-model="email" type="text" label="Nom d'utilisateur"
-          placeholder="Entrez votre nom d'utilisateur du club" class="username-input mb-3">
+        <VaInput v-model="email" type="text" label="Adresse Email"
+          placeholder="Entrez votre adresse email" class="username-input mb-3">
           <template #prependInner>
             <VaIcon name="person" color="primary" size="22px" />
           </template>
@@ -73,8 +73,8 @@ onMounted(async () => {
     // 1) injecte le token dans l axios
     axios.defaults.headers.common.Authorization = `Bearer ${userStore.token}`
     try {
-      // 2) verif /admin/me
-      const { data } = await axios.get('http://localhost:3000/admin/me')
+      // 2) verif /me
+      const { data } = await axios.get('http://localhost:3000/me')
       // si succès, hydrate le store avec les données
       userStore.setUser(data);
       userStore.setPermissions(data.permissions)
@@ -104,7 +104,7 @@ const togglePassword = () => {
 
 const login = async () => {
   try {
-    const response = await axios.post('http://localhost:3000/admin/login', {
+    const response = await axios.post('http://localhost:3000/loginadmin', {
       email: email.value,
       password: password.value
     })

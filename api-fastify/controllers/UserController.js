@@ -71,6 +71,33 @@ class UserController {
     }
   }
 
+  async loginAdmin(req, reply) {
+    try {
+      const user = req.userFromDb // injecté par verifyAdminLogin
+
+      const token = jwt.sign({ id: user.id }, this.jwtSecret, { expiresIn: '24h' })
+
+      reply.setCookie('auth_token_nippon', token, {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 24 * 60 * 60
+      })
+
+      return reply.send({
+        success: true,
+        user: {
+          first_name: user.first_name,
+          last_name: user.last_name
+        }
+      })
+    } catch (err) {
+      console.error('Erreur login admin :', err)
+      return reply.code(500).send({ error: 'Erreur serveur.' })
+    }
+  }
+
   async getUserById(req, reply) {
     try {
       const user = await this.userService.getUserById(req.user.user_id);

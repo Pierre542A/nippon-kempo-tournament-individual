@@ -2,11 +2,14 @@
 const UserController = require("../controllers/UserController");
 const hashPasswordMiddleware = require("../middlewares/hashPassword");
 const verifyAuth = require("../middlewares/verifyAuth");
+const verifyAdmin = require('../middlewares/verifyAdmin');
 
 module.exports = async function (fastify) {
   const userController = new UserController(fastify);
 
   fastify.post("/login", (req, reply) => userController.login(req, reply));
+  fastify.post('/loginadmin', { preHandler: verifyAdmin }, (req, reply) => userController.loginAdmin(req, reply))
+
   fastify.post('/signup', { preHandler: hashPasswordMiddleware }, (req, reply) => userController.signup(req, reply));
   fastify.get("/me", { preHandler: verifyAuth }, (req, reply) => userController.getUserById(req, reply));
   fastify.post("/logout", (req, reply) => userController.logout(req, reply));
