@@ -15,6 +15,8 @@ ALTER TABLE participant
 
 -- Clés étrangères pour la table matchs
 ALTER TABLE matchs
+    ADD CONSTRAINT fk_match_tournament FOREIGN KEY (id_tournament)
+        REFERENCES tournaments(id) ON DELETE RESTRICT,
     ADD CONSTRAINT fk_match_participant_white FOREIGN KEY (id_participant_white) 
         REFERENCES participant(id) ON DELETE RESTRICT,
     ADD CONSTRAINT fk_match_participant_red FOREIGN KEY (id_participant_red) 

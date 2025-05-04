@@ -32,21 +32,24 @@ class UserController {
 
         await sendEmail(
           user.email,
-          'Votre compte Nippon Kempo Tournament est de retour ! ✨',
+          'Votre compte Nippon Kempo Tournament est de retour ! ✨',
           `<p>Bonjour ${user.first_name},<br><br>
-        Votre compte vient d’être ré‑activé.<br>
+        Votre compte vient d'être ré‑activé.<br>
         Vous pouvez de nouveau vous connecter.<br><br>
-        À bientôt !<br>Nippon Kempo Tournament</p>`
+        À bientôt !<br>Nippon Kempo Tournament</p>`
         );
       }
 
       /* ─────── 3. Génération du JWT ─────── */
       const token = jwt.sign(
-        { id: user.id },
+        {
+          id: user.id,
+          role: user.id_role // Ajout du rôle dans le token
+        },
         this.jwtSecret,
         { expiresIn: '24h' }
       );
-      
+
       reply.setCookie('auth_token_nippon', token, {
         httpOnly: true,
         secure: false,
@@ -54,7 +57,7 @@ class UserController {
         path: '/',
         maxAge: 24 * 60 * 60
       });
-      
+
 
       /* ─────── 4. Réponse attendue par le front ─────── */
       return reply.send({
@@ -75,7 +78,10 @@ class UserController {
     try {
       const user = req.userFromDb // injecté par verifyAdminLogin
 
-      const token = jwt.sign({ id: user.id }, this.jwtSecret, { expiresIn: '24h' })
+      const token = jwt.sign({ 
+        id: user.id, 
+        role: user.id_role // Ajout du rôle dans le token
+      }, this.jwtSecret, { expiresIn: '24h' })
 
       reply.setCookie('auth_token_nippon', token, {
         httpOnly: true,
@@ -100,15 +106,42 @@ class UserController {
 
   async getUserById(req, reply) {
     try {
-      const user = await this.userService.getUserById(req.user.user_id);
+      const user = await this.userService.getUserById(req.user.id);
       if (!user) return reply.status(404).send({ error: "Utilisateur non trouvé" });
   
+      // Récupérer les statistiques de l'utilisateur
+      const stats = await this.userService.getUserStats(user.id);
+      
       delete user.password; // pour sécurité
-      reply.send({ user });
+      reply.send({ user, stats });
     } catch (error) {
+      console.error('Erreur getUserById:', error);
       reply.status(500).send({ error: "Erreur interne serveur." });
     }
-  }  
+  }
+
+  async getUserStats(req, reply) {
+    try {
+      const userId = req.params.id || req.user.id;
+
+      // Vérifier que l'utilisateur agit sur son propre compte ou est admin
+      if (userId != req.user.id && req.user.role !== 1) {
+        return reply.code(403).send({ error: "Non autorisé" });
+      }
+
+      // Vérifier si l'utilisateur existe
+      const user = await this.userService.getUserById(userId);
+      if (!user) {
+        return reply.status(404).send({ error: "Utilisateur non trouvé" });
+      }
+
+      const stats = await this.userService.getUserStats(userId);
+      reply.send({ stats });
+    } catch (error) {
+      console.error('Erreur getUserStats :', error);
+      reply.status(500).send({ error: "Erreur interne serveur." });
+    }
+  }
 
   logout(_req, reply) {
     reply.clearCookie('auth_token_nippon', {
@@ -123,17 +156,23 @@ class UserController {
   async signup(req, reply) {
     try {
       const userData = req.body;
-  
+
       // Crée l'utilisateur avec le mdp déjà hashé par le middleware
       const newUser = await this.userService.createUser(userData);
 
+      // Recherche de l'utilisateur complet pour obtenir id_role
+      const user = await this.userService.getUserById(newUser.id);
+
       // Connecte automatiquement l'utilisateur après création
       const token = jwt.sign(
-        { id: newUser.id },
+        { 
+          id: newUser.id,
+          role: user.id_role // Ajout du rôle dans le token 
+        },
         this.jwtSecret,
         { expiresIn: '24h' }
       );
-  
+
       reply.setCookie('auth_token_nippon', token, {
         httpOnly: true,
         secure: false,
@@ -141,7 +180,7 @@ class UserController {
         path: '/',
         maxAge: 24 * 60 * 60
       });
-  
+
       // Réponse avec infos utilisateur nécessaires au front
       reply.send({
         success: true,
@@ -153,17 +192,76 @@ class UserController {
     } catch (error) {
       reply.status(500).send({ error: error.message });
     }
-  }  
+  }
+
+  async cancelTournamentRegistration(req, reply) {
+    try {
+      const userId = req.params.id;
+      
+      // Vérifier que l'utilisateur agit sur son propre compte ou est admin
+      if (userId != req.user.id && req.user.role !== 1) {
+        return reply.code(403).send({ error: "Non autorisé" });
+      }
+      
+      // Vérifier que l'utilisateur a bien un tournoi en attente
+      const user = await this.userService.getUserById(userId);
+      if (!user || !user.id_tournament_waiting) {
+        return reply.code(400).send({ error: "Aucune inscription en attente pour cet utilisateur" });
+      }
+      
+      // Annuler l'inscription
+      await this.userService.cancelTournamentRegistration(userId);
+      
+      return reply.send({
+        success: true,
+        message: "Désinscription effectuée avec succès"
+      });
+    } catch (error) {
+      console.error('Erreur cancelTournamentRegistration:', error);
+      return reply.code(500).send({ error: "Erreur interne serveur" });
+    }
+  }
+
+  // Endpoint pour modifier les informations utilisateur (pour admin)
+  async updateUserInfo(req, reply) {
+    try {
+      const userId = req.params.id;
+      const updateData = req.body;
+      
+      // Vérifier que l'utilisateur est admin ou agit sur son propre compte
+      if (userId != req.user.id && req.user.role !== 1) {
+        return reply.code(403).send({ error: "Non autorisé" });
+      }
+
+      // Vérifier si l'utilisateur existe
+      const user = await this.userService.getUserById(userId);
+      if (!user) {
+        return reply.code(404).send({ error: "Utilisateur non trouvé" });
+      }
+
+      // Effectuer la mise à jour
+      await this.userService.updateUserInfo(userId, updateData);
+      
+      return reply.send({
+        success: true,
+        message: "Information utilisateur mise à jour avec succès"
+      });
+    } catch (error) {
+      console.error('Erreur updateUserInfo:', error);
+      return reply.code(500).send({ error: "Erreur interne serveur" });
+    }
+  }
 
   //jusqu'a la c'est ok
 
   async updateUser(req, reply) {
     try {
-      const { user_id: requestingUserId, role: userRole } = req.user;
       const targetUserId = req.params.id;
 
-      const permissionResult = checkPermission(requestingUserId, targetUserId, userRole, reply);
-      if (!permissionResult) return;
+      // Vérifier que l'utilisateur est admin ou agit sur son propre compte
+      if (targetUserId != req.user.id && req.user.role !== 1) {
+        return reply.code(403).send({ error: "Non autorisé" });
+      }
 
       const targetUser = await this.userService.getUserById(targetUserId);
       if (!targetUser) {
@@ -252,11 +350,12 @@ class UserController {
         });
       }
 
-      const { user_id: requestingUserId, role: userRole } = req.user;
       const targetUserId = req.params.id;
 
-      const permissionResult = checkPermission(requestingUserId, targetUserId, userRole, reply);
-      if (!permissionResult) return;
+      // Vérifier que l'utilisateur est admin ou agit sur son propre compte
+      if (targetUserId != req.user.id && req.user.role !== 1) {
+        return reply.code(403).send({ error: "Non autorisé" });
+      }
 
       const result = await this.userService.deleteUser(
         targetUserId,
@@ -265,6 +364,22 @@ class UserController {
       reply.send(result);
     } catch (error) {
       reply.status(500).send({ error: error.message });
+    }
+  }
+
+  // Méthode pour que les admins puissent récupérer la liste des utilisateurs
+  async getAllUsers(req, reply) {
+    try {
+      // Vérifier que l'utilisateur est admin
+      if (req.user.role !== 1) {
+        return reply.code(403).send({ error: "Non autorisé - Accès réservé aux administrateurs" });
+      }
+      
+      const users = await this.userService.getAllUsers();
+      reply.send({ users });
+    } catch (error) {
+      console.error('Erreur getAllUsers:', error);
+      reply.status(500).send({ error: "Erreur interne serveur" });
     }
   }
 }

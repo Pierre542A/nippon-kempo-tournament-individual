@@ -77,7 +77,39 @@ class UserService {
       console.error('Erreur SQL getUserById :', error);
       throw new Error(`Erreur lors de la récupération de l'utilisateur par ID: ${error.message}`);
     }
-  }  
+  }
+
+  async getUserStats(userId) {
+    try {
+      const [rows] = await this.mysql.execute(
+        `SELECT
+          COUNT(DISTINCT id_tournament) AS totalTournaments,
+          COUNT(*) AS matches,
+          SUM(id_winner = ?) AS victories,
+          SUM(id_winner IS NOT NULL AND id_winner <> ?) AS defeats,
+          SUM(CASE WHEN id_users_white = ? THEN ippon_white
+                ELSE ippon_red END) AS ippon,
+          SUM(CASE WHEN id_users_white = ? THEN keikoku_white
+                ELSE keikoku_red END) AS keiKoku
+        FROM matchs
+        WHERE ? IN (id_users_white, id_users_red)`,
+        [userId, userId, userId, userId, userId]
+      );
+      
+      // Transformer les valeurs NULL en 0
+      const stats = rows[0];
+      for (const key in stats) {
+        if (stats[key] === null) {
+          stats[key] = 0;
+        }
+      }
+      
+      return stats;
+    } catch (error) {
+      console.error('Erreur SQL getUserStats :', error);
+      throw new Error(`Erreur lors de la récupération des statistiques: ${error.message}`);
+    }
+  }
 
   async createUser(userData) {
     try {
@@ -111,7 +143,125 @@ class UserService {
     } catch (error) {
       throw new Error('Erreur création utilisateur : ' + error.message);
     }
-  }  
+  }
+
+  async cancelTournamentRegistration(userId) {
+    try {
+      const [result] = await this.mysql.execute(
+        `UPDATE users
+         SET id_tournament_waiting = NULL
+         WHERE id = ?`,
+        [userId]
+      );
+      
+      if (result.affectedRows === 0) {
+        throw new Error("Utilisateur non trouvé");
+      }
+      
+      return true;
+    } catch (error) {
+      throw new Error(`Erreur lors de l'annulation de l'inscription: ${error.message}`);
+    }
+  }
+
+  async getAllUsers() {
+    try {
+      const [rows] = await this.mysql.execute(
+        `SELECT
+          u.id,
+          u.first_name,
+          u.last_name,
+          u.email,
+          u.phone,
+          u.birth_date,
+          u.weight,
+          u.nationality,
+          u.id_grade,
+          g.name AS grade_name,
+          u.id_role,
+          r.name AS role_name,
+          u.id_club,
+          c.name AS club_name,
+          u.id_tournament_waiting,
+          u.is_active,
+          u.created_at
+        FROM users u
+        LEFT JOIN grades g ON u.id_grade = g.id
+        LEFT JOIN roles r ON u.id_role = r.id
+        LEFT JOIN clubs c ON u.id_club = c.id
+        ORDER BY u.id`
+      );
+      
+      // Supprimer les mots de passe pour sécurité
+      rows.forEach(user => {
+        delete user.password;
+      });
+      
+      return rows;
+    } catch (error) {
+      console.error('Erreur SQL getAllUsers:', error);
+      throw new Error(`Erreur lors de la récupération des utilisateurs: ${error.message}`);
+    }
+  }
+  
+  // Méthode pour mettre à jour les informations d'un utilisateur (utilisée par les admins)
+  async updateUserInfo(userId, updateData) {
+    try {
+      // Vérifier que l'utilisateur existe
+      const [userExists] = await this.mysql.execute(
+        `SELECT id FROM users WHERE id = ?`,
+        [userId]
+      );
+      
+      if (userExists.length === 0) {
+        throw new Error("Utilisateur non trouvé");
+      }
+      
+      // Filtrer les champs autorisés
+      const allowedFields = [
+        'first_name', 'last_name', 'email', 'phone', 
+        'birth_date', 'weight', 'nationality', 
+        'id_grade', 'id_club', 'id_role', 'is_active'
+      ];
+      
+      const filteredData = {};
+      for (const field of allowedFields) {
+        if (updateData[field] !== undefined) {
+          filteredData[field] = updateData[field];
+        }
+      }
+      
+      // S'il n'y a pas de champs à mettre à jour, retourner
+      if (Object.keys(filteredData).length === 0) {
+        return { message: "Aucune modification à effectuer" };
+      }
+      
+      // Construire la requête de mise à jour
+      const setClause = Object.keys(filteredData)
+        .map(key => `${key} = ?`)
+        .join(', ');
+      
+      const values = [...Object.values(filteredData), userId];
+      
+      const [result] = await this.mysql.execute(
+        `UPDATE users SET ${setClause} WHERE id = ?`,
+        values
+      );
+      
+      if (result.affectedRows === 0) {
+        throw new Error("La mise à jour a échoué");
+      }
+      
+      return { 
+        success: true,
+        message: "Utilisateur mis à jour avec succès",
+        updatedFields: Object.keys(filteredData)
+      };
+    } catch (error) {
+      console.error('Erreur SQL updateUserInfo:', error);
+      throw new Error(`Erreur lors de la mise à jour de l'utilisateur: ${error.message}`);
+    }
+  }
   
   //jusqu'a la c'est ok
 

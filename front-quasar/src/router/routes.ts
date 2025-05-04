@@ -33,6 +33,15 @@ const routes: RouteRecordRaw[] = [
           title: 'Tournois'
         }
       },
+      {
+        path: 'admin',
+        component: () => import('pages/AdminPage.vue'),
+        meta: {
+          title: 'Administration',
+          requiresAuth: true,
+          requiresAdmin: true
+        }
+      },
     ],
   },
   {

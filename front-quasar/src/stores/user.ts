@@ -1,58 +1,70 @@
-/* src/stores/user.ts ---------------------------------------------------- */
+/* -------------------------------------------------------------------- */
+/* src/stores/user.ts                                                   */
+/* -------------------------------------------------------------------- */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from 'axios'
 
-/* ---------------------------------------------------------------- types */
+/* --------------------------- types utilisateur ----------------------- */
 export interface User {
-    id: number;
-    first_name: string;
-    last_name: string;
-    birth_date: string;
-    email: string;
-    phone: string | null;
-    weight: number;
-    nationality: string;
-    id_gender: number;
-    id_grade: number | null;
-    grade_name: string;
-    id_club: number | null;
-    club_name: string;
-    id_role: number;
-    is_active: boolean;
-    created_at: string;
-    id_tournament_waiting: number | null;
+    id: number
+    avatar_seed: string          // ← toujours NON NULL en BDD
+    first_name: string
+    last_name: string
+    birth_date: string
+    email: string
+    phone: string | null
+    weight: number
+    nationality: string
+    id_gender: number
+    id_grade: number | null
+    grade_name: string
+    id_club: number | null
+    club_name: string
+    id_role: number
+    is_active: boolean
+    created_at: string
+    id_tournament_waiting: number | null
 }
 
-/* stats que tu renverras via  GET /users/:id/stats  --------------------- */
+/* stats renvoyées par GET /users/:id/stats --------------------------- */
 export interface Stats {
     totalTournaments: number
+    matches: number
     victories: number
     defeats: number
     ippon: number
     keiKoku: number
-    totalTime: number     // secondes
 }
 
-/* ---------------------------------------------------------------------- */
+/* -------------------------------------------------------------------- */
 axios.defaults.withCredentials = true   // cookies cross-origin
 
 export const useUserStore = defineStore('user', () => {
-    /* ------------------------------ state -------------------------------- */
+    /* ------------------------------ state ------------------------------ */
     const user = ref<User | null>(null)
     const stats = ref<Stats | null>(null)
     const loading = ref(false)
 
-    /* ------------------------------ getters ------------------------------ */
+    /* ---------------------- constantes avatar DiceBear ----------------- */
+    const DEFAULT_SEED = 'default'
+    const AVATAR_STYLE = 'avataaars'     // change ici si tu préfères un autre style
+    const AVATAR_SIZE = 150             // px (pour le <q-avatar size="150px">)
+
+    /* ------------------------------ getters ---------------------------- */
+    const avatarUrl = computed(() => {
+        const seed = user.value?.avatar_seed ?? DEFAULT_SEED
+        return `https://api.dicebear.com/9.x/${AVATAR_STYLE}/svg` +
+            `?seed=${encodeURIComponent(seed)}&size=${AVATAR_SIZE}`
+    })
+
     const connected = computed(() => user.value !== null)
     const fullName = computed(() =>
         user.value ? `${user.value.last_name} ${user.value.first_name}` : ''
     )
-
     const isAdmin = computed(() => user.value?.id_role === 1)
     const isManager = computed(() => user.value?.id_role === 2)
 
-    /* labels : tu peux remplacer par des appels API si tu préfères -------- */
     const gradeLabel = computed(() => {
         const map: Record<number, string> = {
             1: '6ᵉ kyu', 2: '5ᵉ kyu', 3: '4ᵉ kyu', 4: 'ceinture marron',
@@ -70,30 +82,26 @@ export const useUserStore = defineStore('user', () => {
         return user.value?.id_club ? map[user.value.id_club] ?? '—' : '—'
     })
 
-    /* ------------------------------ actions ------------------------------ */
-
+    /* ------------------------------ actions ---------------------------- */
     /** Vérifie s’il existe un cookie auth et récupère /me */
     async function fetchSession() {
         loading.value = true
         try {
-            // on indique au TS ce qu’on attend dans la réponse
             const { data } = await axios.get<{ user: User; stats: Stats }>(
                 `${import.meta.env.VITE_API_URL}/me`
             )
-
+            console.log("Données reçues de /me:", data)
             user.value = data.user
             stats.value = data.stats
-        }
-        catch {
+        } catch {
             user.value = null
             stats.value = null
-        }
-        finally {
+        } finally {
             loading.value = false
         }
     }
 
-    /** POST /login  — retourne true/false */
+    /** POST /login — retourne true/false */
     async function login(email: string, password: string) {
         loading.value = true
         try {
@@ -107,9 +115,9 @@ export const useUserStore = defineStore('user', () => {
         }
     }
 
-    /** POST /signup  — payload minimal pour l’exemple */
+    /** POST /signup — payload minimal */
     async function signup(payload: {
-        first_name: string; last_name: string; email: string; password: string;
+        first_name: string; last_name: string; email: string; password: string
         birth_date: string; weight: number; nationality: string; id_gender: number; phone?: string
     }) {
         loading.value = true
@@ -124,7 +132,7 @@ export const useUserStore = defineStore('user', () => {
         }
     }
 
-    /** Déconnexion totale */
+    /** Déconnexion */
     async function logout() {
         try {
             await axios.post(`${import.meta.env.VITE_API_URL}/logout`)
@@ -134,10 +142,11 @@ export const useUserStore = defineStore('user', () => {
         }
     }
 
-    /* ------------------------------ expose ------------------------------- */
+    /* ------------------------------ expose ----------------------------- */
     return {
     /* state */   user, stats, loading,
-    /* getters */ connected, fullName, gradeLabel, clubLabel, isAdmin, isManager,
+    /* getters */ connected, fullName, gradeLabel, clubLabel,
+        isAdmin, isManager, avatarUrl,
     /* actions */ fetchSession, login, signup, logout
     }
 })

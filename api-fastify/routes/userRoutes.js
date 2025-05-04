@@ -1,19 +1,32 @@
 // routes/userRoutes.js
 const UserController = require("../controllers/UserController");
+const TournamentController = require("../controllers/TournamentController");
 const hashPasswordMiddleware = require("../middlewares/hashPassword");
 const verifyAuth = require("../middlewares/verifyAuth");
 const verifyAdmin = require('../middlewares/verifyAdmin');
 
 module.exports = async function (fastify) {
   const userController = new UserController(fastify);
-
+  const tournamentController = new TournamentController(fastify);
+  
+  // Routes d'authentification
   fastify.post("/login", (req, reply) => userController.login(req, reply));
-  fastify.post('/loginadmin', { preHandler: verifyAdmin }, (req, reply) => userController.loginAdmin(req, reply))
-
+  fastify.post('/loginadmin', { preHandler: verifyAdmin }, (req, reply) => userController.loginAdmin(req, reply));
   fastify.post('/signup', { preHandler: hashPasswordMiddleware }, (req, reply) => userController.signup(req, reply));
   fastify.get("/me", { preHandler: verifyAuth }, (req, reply) => userController.getUserById(req, reply));
   fastify.post("/logout", (req, reply) => userController.logout(req, reply));
-
+  
+  // Routes utilisateurs
+  fastify.get("/users/:id/stats", { preHandler: verifyAuth }, (req, reply) => userController.getUserStats(req, reply));
+  fastify.delete("/users/:id/tournament-registration", { preHandler: verifyAuth }, (req, reply) => userController.cancelTournamentRegistration(req, reply));
+  fastify.put("/users/:id", { preHandler: verifyAuth }, (req, reply) => userController.updateUserInfo(req, reply));
+  
+  // Routes tournois
+  fastify.get("/tournaments/:id", (req, reply) => tournamentController.getTournamentById(req, reply));
+  
+  // Routes administrateur
+  fastify.get("/admin/users", { preHandler: verifyAuth }, (req, reply) => userController.getAllUsers(req, reply));
+  
   //jusqu'a la c'est ok
    
   fastify.get("/email_confirmation", async (req, reply) => { return userController.confirmEmail(req, reply); });

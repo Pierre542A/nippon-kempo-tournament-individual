@@ -24,6 +24,7 @@ const dbConfig = {
 const rateLimit = require("./middlewares/rateLimit");
 const userRoutes = require("./routes/userRoutes");
 const UserService = require("./services/userService");
+const TournamentService = require("./services/TournamentService"); // <-- Ajoutez cette ligne
 
 fastify.register(require("@fastify/cookie"), {
   secret: process.env.COOKIE_SECRET,
@@ -55,6 +56,9 @@ const start = async () => {
 
     const userServiceInstance = new UserService(fastify);
     fastify.decorate("userService", userServiceInstance);
+
+    const tournamentServiceInstance = new TournamentService(fastify); // <-- Ajoutez cette ligne
+    fastify.decorate("tournamentService", tournamentServiceInstance); // <-- Ajoutez cette ligne
 
     fastify.register(userRoutes);
 

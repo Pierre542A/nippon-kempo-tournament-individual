@@ -247,7 +247,9 @@
 
         <q-item-label header />
 
-        <q-item to="/profile" clickable v-ripple>
+        <!-- Menu qui dépend de la connexion -->
+        <!-- Profil - uniquement pour les utilisateurs connectés -->
+        <q-item v-if="isConnected" to="/profile" clickable v-ripple>
           <q-item-section avatar>
             <q-icon name="account_circle" />
           </q-item-section>
@@ -259,6 +261,7 @@
           </q-item-section>
         </q-item>
 
+        <!-- Tournois - visible pour tous -->
         <q-item to="/tournaments" clickable v-ripple>
           <q-item-section avatar>
             <q-icon name="view_list" />
@@ -268,6 +271,23 @@
             <q-item-label caption>Liste des prochains tournois</q-item-label>
           </q-item-section>
         </q-item>
+
+        <!-- Administration - uniquement pour les administrateurs -->
+        <template v-if="isConnected && isAdmin">
+          <q-separator />
+          <q-item-label header>Administration</q-item-label>
+          <q-item to="/admin" clickable v-ripple>
+            <q-item-section avatar>
+              <q-icon name="admin_panel_settings" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Espace administrateur</q-item-label>
+              <q-item-label caption>
+                Gérez les utilisateurs, modifiez leurs informations ou désactivez-les.
+              </q-item-label>
+            </q-item-section>
+          </q-item>
+        </template>
       </q-list>
     </q-drawer>
 
@@ -279,11 +299,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useUserStore } from '../stores/user'
 
 const route = useRoute()
+const router = useRouter()
 const $q = useQuasar()
 const store = useUserStore()
 
@@ -315,6 +336,7 @@ const currentTitle = computed(
   () => route.meta.title as string || 'Nippon Kempo Tournament'
 )
 const isConnected = computed(() => store.connected)
+const isAdmin = computed(() => store.isAdmin)
 
 // Methods
 function toggleLeftDrawer() {
@@ -362,6 +384,10 @@ async function handleLogin() {
 
 async function logout() {
   await store.logout()
+  // Rediriger vers la page d'accueil si on est sur une page protégée
+  if (route.path.startsWith('/profile') || route.path.startsWith('/admin')) {
+    router.push('/')
+  }
   $q.notify({ message: 'Déconnexion réussie', color: 'negative' })
 }
 
