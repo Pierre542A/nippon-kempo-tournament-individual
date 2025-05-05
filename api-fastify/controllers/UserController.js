@@ -2,7 +2,6 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const sendEmail = require("../middlewares/sendEmail");
-const { checkPermission } = require("../middlewares/permissionHandler");
 
 class UserController {
   constructor(fastify) {
@@ -190,6 +189,7 @@ class UserController {
         }
       });
     } catch (error) {
+      console.error('🛑 Signup error:', error);      // <-- log complet
       reply.status(500).send({ error: error.message });
     }
   }

@@ -113,29 +113,39 @@ class UserService {
 
   async createUser(userData) {
     try {
-      const [existingUser] = await this.mysql.execute(
+      const [rows] = await this.mysql.execute(
         `SELECT id FROM users WHERE email = ?`,
         [userData.email]
       );
   
-      if (existingUser.length > 0) {
+      if (rows.length > 0) {
         throw new Error("Cette adresse email est déjà utilisée.");
+      }
+  
+      // Adaptation : utiliser password ou user_password selon ce qui est disponible
+      const password = userData.user_password || userData.password;
+      if (!password) {
+        throw new Error("Le mot de passe est obligatoire");
       }
   
       const [result] = await this.mysql.execute(
         `INSERT INTO users
-          (first_name, last_name, email, password, birth_date, weight, phone, nationality, id_gender, id_role, created_at, is_active)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 3, NOW(), 1)`,
+          (first_name, last_name, email, password, birth_date, weight, phone, nationality, id_gender, id_grade, id_club, id_role, created_at, is_active, avatar_seed)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 1, ?)`,
         [
           userData.first_name,
           userData.last_name,
           userData.email,
-          userData.user_password,
+          password,
           userData.birth_date,
           userData.weight,
           userData.phone || '',
           userData.nationality,
-          userData.id_gender
+          userData.id_gender,
+          userData.id_grade || 1,       // Utilisation de la valeur envoyée ou 1 par défaut
+          userData.id_club || 1,        // Utilisation de la valeur envoyée ou 1 par défaut
+          userData.id_role || 3,        // Rôle participant par défaut (3)
+          userData.avatar_seed || 'default'
         ]
       );
   
@@ -199,6 +209,7 @@ class UserService {
       
       return rows;
     } catch (error) {
+      console.error('🛑 createUser error:', error);
       console.error('Erreur SQL getAllUsers:', error);
       throw new Error(`Erreur lors de la récupération des utilisateurs: ${error.message}`);
     }

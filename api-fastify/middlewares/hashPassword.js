@@ -1,30 +1,35 @@
-const bcrypt = require("bcrypt");
+// middlewares/hashPassword.js
+const bcrypt = require('bcrypt');
 
-const hashPasswordMiddleware = async (request, reply) => {
-  if (request.body && request.body.user_password) {
-    const password = request.body.user_password;
-
-    const minLength = 8;
-    const saltRounds = 12;
-    const noSpacesOrInvisible = /^\S+$/;
-
-    if (password.length < minLength) {
-      reply.status(400).send({
-        error: `Le mot de passe doit contenir au moins ${minLength} caractères.`,
-      });
-      return;
+async function hashPasswordMiddleware(req, reply) {
+  try {
+    // Vérifier si le mot de passe est présent dans le corps de la requête
+    if (req.body.password || req.body.user_password) {
+      // Récupérer le mot de passe quel que soit le champ utilisé
+      const plainPassword = req.body.password || req.body.user_password;
+      
+      // Vérifier la longueur minimale du mot de passe (8 caractères)
+      if (plainPassword.length < 8) {
+        return reply.code(400).send({ 
+          error: 'Le mot de passe doit contenir au moins 8 caractères' 
+        });
+      }
+      
+      // Si le mot de passe n'est pas déjà hashé (ne commence pas par $2a$), le hasher
+      if (!plainPassword.startsWith('$2a$')) {
+        const saltRounds = 12;
+        const hashedPassword = await bcrypt.hash(plainPassword, saltRounds);
+        
+        // Mettre à jour le mot de passe dans le corps de la requête
+        if (req.body.password) req.body.password = hashedPassword;
+        if (req.body.user_password) req.body.user_password = hashedPassword;
+        if (!req.body.user_password) req.body.user_password = hashedPassword;
+      }
     }
-
-    if (!noSpacesOrInvisible.test(password)) {
-      reply.status(400).send({
-        error:
-          "Le mot de passe ne doit pas contenir d'espaces ou de caractères invisibles.",
-      });
-      return;
-    }
-    
-    request.body.user_password = await bcrypt.hash(password, saltRounds);
+  } catch (error) {
+    console.error('Erreur de hachage du mot de passe :', error);
+    return reply.code(500).send({ error: 'Erreur interne du serveur' });
   }
-};
+}
 
 module.exports = hashPasswordMiddleware;
