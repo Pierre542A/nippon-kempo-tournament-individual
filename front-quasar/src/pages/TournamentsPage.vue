@@ -108,6 +108,18 @@
       <h1>Liste des tournois</h1>
     </div>
 
+    <!-- Bannière de notification si l'utilisateur a déjà une inscription en attente -->
+    <div v-if="userStore.user?.id_tournament_waiting !== undefined && userStore.user?.id_tournament_waiting !== null" class="q-mb-md">
+      <q-banner class="bg-orange-1 text-dark" rounded>
+        <template v-slot:avatar>
+          <q-icon name="info" color="warning" />
+        </template>
+        Vous avez déjà une inscription en attente pour un tournoi. 
+        Pour vous inscrire à un autre tournoi, veuillez d'abord annuler votre inscription actuelle 
+        depuis votre <router-link to="/profile" class="text-primary">page de profil</router-link>.
+      </q-banner>
+    </div>
+
     <!-- Table des tournois avec lignes extensibles -->
     <q-table
       :rows="paginatedTournaments"
@@ -119,17 +131,26 @@
       class="tournaments-table"
       no-data-label="Aucun tournoi disponible"
       v-model:expanded="expanded"
+      :loading="loading"
     >
       <template v-slot:body="props">
         <q-tr :props="props" @click="toggleRow(props.row)" class="cursor-pointer hover-row">
           <q-td key="name" :props="props">
             {{ props.row.name }}
           </q-td>
-          <q-td key="date" :props="props">
-            {{ formatDate(props.row.date) }}
+          <q-td key="start_date" :props="props">
+            {{ formatDate(props.row.start_date) }}
+          </q-td>
+          <q-td key="end_date" :props="props">
+            {{ formatDate(props.row.end_date) }}
           </q-td>
           <q-td key="club" :props="props">
             {{ props.row.club }}
+          </q-td>
+          <q-td key="status" :props="props">
+            <q-badge :color="props.row.status === 'open' ? 'positive' : 'negative'">
+              {{ props.row.status === 'open' ? 'Ouvert' : 'Fermé' }}
+            </q-badge>
           </q-td>
         </q-tr>
 
@@ -146,11 +167,36 @@
                           <span class="text-grey-8">Nom:</span> {{ props.row.name }}
                         </p>
                         <p class="text-weight-medium">
-                          <span class="text-grey-8">Date:</span> {{ formatDate(props.row.date) }}
+                          <span class="text-grey-8">Date de début:</span> {{ formatDateTime(props.row.start_date) }}
+                        </p>
+                        <p class="text-weight-medium">
+                          <span class="text-grey-8">Date de fin:</span> {{ formatDateTime(props.row.end_date) }}
                         </p>
                         <p class="text-weight-medium">
                           <span class="text-grey-8">Club organisateur:</span> {{ props.row.club }}
                         </p>
+                        <p class="text-weight-medium">
+                          <span class="text-grey-8">Lieu:</span> {{ props.row.address }}
+                        </p>
+                        <div class="text-weight-medium q-mt-md">
+                          <p class="text-grey-8">Catégories:</p>
+                          <div v-if="props.row.categories && props.row.categories.length">
+                            <q-list bordered separator>
+                              <q-item v-for="category in props.row.categories" :key="category.id">
+                                <q-item-section>
+                                  <q-item-label>{{ category.name }}</q-item-label>
+                                  <q-item-label caption>
+                                    Grade min: {{ category.grade_min }} | Grade max: {{ category.grade_max }} | 
+                                    Type: {{ category.category_type }}
+                                  </q-item-label>
+                                </q-item-section>
+                              </q-item>
+                            </q-list>
+                          </div>
+                          <div v-else>
+                            <p class="text-italic">Aucune catégorie d'enregistrer</p>
+                          </div>
+                        </div>
                       </div>
                     </div>
                     <div>
@@ -159,6 +205,8 @@
                         label="S'inscrire"
                         class="q-px-md"
                         icon="how_to_reg"
+                        :disable="props.row.status === 'closed' || Boolean(userStore.user?.id_tournament_waiting)"
+                        @click="openConfirmDialog(props.row.id)"
                       />
                     </div>
                   </div>
@@ -206,17 +254,96 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <!-- Dialog de confirmation d'inscription -->
+    <q-dialog v-model="confirmDialogVisible" persistent>
+      <q-card style="min-width: 350px">
+        <q-card-section class="bg-primary text-white">
+          <div class="text-h6">
+            <q-icon name="how_to_reg" class="q-mr-sm" />
+            Confirmer l'inscription
+          </div>
+        </q-card-section>
+
+        <q-card-section class="q-pt-md">
+          <p>Êtes-vous sûr de vouloir vous inscrire au tournoi <strong>{{ selectedTournament?.name }}</strong> ?</p>
+          <p class="text-grey-8">
+            Date: {{ selectedTournament ? formatDate(selectedTournament.start_date) : '' }}
+          </p>
+          <p class="text-grey-8">
+            Lieu: {{ selectedTournament?.address }}
+          </p>
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-pb-md q-pr-md">
+          <q-btn flat label="Annuler" color="primary" v-close-popup />
+          <q-btn unelevated label="Confirmer" color="primary" @click="registerForTournament" 
+                 :loading="registering" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import axios from 'axios'
+import { useQuasar } from 'quasar'
+import { useUserStore } from '../stores/user'
+import { useRouter } from 'vue-router'
+
+const $q = useQuasar()
+const userStore = useUserStore()
+const router = useRouter()
+
+// Création d'une instance API
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || ''
+})
+
+interface Category {
+  id: number
+  name: string
+  grade_min: string
+  grade_max: string
+  category_type: string
+}
 
 interface Tournament {
   id: number
   name: string
-  date: string
+  start_date: string
+  end_date: string
   club: string
+  club_id: number
+  address: string
+  status: 'open' | 'closed'
+  categories?: Category[]
+}
+
+interface ApiTournament {
+  id: number
+  name: string
+  start_date: string
+  end_date: string
+  club_name: string
+  id_club: number
+  address: string
+  status: 'open' | 'closed'
+}
+
+interface ApiCategory {
+  id: number
+  name: string
+  grade_min_name: string
+  grade_max_name: string
+  category_type_name: string
+}
+
+interface ApiResponse<T> {
+  message?: string
+  data?: T
+  success?: boolean
 }
 
 // Définition des colonnes du tableau
@@ -230,11 +357,19 @@ const columns = [
     sortable: true
   },
   {
-    name: 'date',
+    name: 'start_date',
     required: true,
-    label: 'Date',
+    label: 'Date de début',
     align: 'left' as const,
-    field: 'date',
+    field: 'start_date',
+    sortable: true
+  },
+  {
+    name: 'end_date',
+    required: true,
+    label: 'Date de fin',
+    align: 'left' as const,
+    field: 'end_date',
     sortable: true
   },
   {
@@ -243,6 +378,14 @@ const columns = [
     label: 'Club organisateur',
     align: 'left' as const,
     field: 'club',
+    sortable: true
+  },
+  {
+    name: 'status',
+    required: true,
+    label: 'Statut',
+    align: 'left' as const,
+    field: 'status',
     sortable: true
   }
 ]
@@ -259,6 +402,14 @@ const tournamentPage = ref(1)
 const clubsPerPage = 5
 const tournamentsPerPage = 10
 const expanded = ref<Tournament[]>([])
+const loading = ref(false)
+const tournaments = ref<Tournament[]>([])
+
+// États pour l'inscription
+const confirmDialogVisible = ref(false)
+const selectedTournamentId = ref<number | null>(null)
+const selectedTournament = ref<Tournament | null>(null)
+const registering = ref(false)
 
 const pagination = ref({
   rowsPerPage: tournamentsPerPage,
@@ -278,28 +429,107 @@ const availableClubs = [
   'Club Bordeaux'
 ].sort()
 
-const tournaments: Tournament[] = [
-  { id: 1,  name: 'Tournoi Régional',       date: '2025-03-10', club: 'Sho Bu Kai' },
-  { id: 2,  name: 'Championnat National',   date: '2025-04-15', club: 'Kempo Lyon' },
-  { id: 3,  name: 'Open Paris',             date: '2025-05-20', club: 'Nippon Kempo Paris' },
-  { id: 4,  name: 'Coupe de France',        date: '2025-06-05', club: 'Club Tokyo' },
-  { id: 5,  name: 'Challenge Inter-Clubs',  date: '2025-07-12', club: 'Dojo Osaka' },
-  { id: 6,  name: 'Tournoi International',  date: '2025-08-25', club: 'Club Kyoto' },
-  { id: 7,  name: 'Open du Sud',            date: '2025-09-30', club: 'Nippon Kempo Nice' },
-  { id: 8,  name: 'Challenge d\'Automne',   date: '2025-10-15', club: 'Club Bordeaux' },
-  { id: 9,  name: 'Championnat National',   date: '2025-04-15', club: 'Kempo Lyon' },
-  { id: 10, name: 'Open Paris',             date: '2025-05-20', club: 'Nippon Kempo Paris' },
-  { id: 11, name: 'Coupe de France',        date: '2025-06-05', club: 'Club Tokyo' },
-  { id: 12, name: 'Challenge Inter-Clubs',  date: '2025-07-12', club: 'Dojo Osaka' },
-  { id: 13, name: 'Tournoi International',  date: '2025-08-25', club: 'Club Kyoto' },
-  { id: 14, name: 'Open du Sud',            date: '2025-09-30', club: 'Nippon Kempo Nice' },
-  { id: 15, name: 'Challenge d\'Automne',   date: '2025-10-15', club: 'Club Bordeaux' },
-  { id: 16, name: 'Tournoi de Printemps',   date: '2025-03-20', club: 'Sho Bu Kai' },
-  { id: 17, name: 'Coupe d\'Été',           date: '2025-07-01', club: 'Kempo Lyon' },
-  { id: 18, name: 'Open d\'Hiver',          date: '2025-12-10', club: 'Nippon Kempo Paris' },
-  { id: 19, name: 'Tournoi des Champions',  date: '2025-11-05', club: 'Club Tokyo' },
-  { id: 20, name: 'Challenge des Étoiles',  date: '2025-08-01', club: 'Dojo Osaka' }
-]
+// Définir un mapping sûr pour les clubs
+const clubsMap: Record<number, string> = {
+  1: 'Sho Bu Kai',
+  2: 'Kempo Lyon',
+  3: 'Nippon Kempo Paris',
+  4: 'Club Tokyo', 
+  5: 'Dojo Osaka',
+  6: 'Club Kyoto',
+  7: 'Dojo Kobe',
+  8: 'Club Sapporo',
+  9: 'Nippon Kempo Nice',
+  10: 'Club Bordeaux'
+}
+
+// Fonction pour récupérer les tournois depuis l'API
+async function fetchTournaments() {
+  loading.value = true
+  try {
+    const { data } = await api.get<ApiTournament[]>('/tournaments')
+    tournaments.value = data.map((tournament: ApiTournament) => ({
+      id: tournament.id,
+      name: tournament.name,
+      start_date: tournament.start_date,
+      end_date: tournament.end_date,
+      club: tournament.club_name,
+      club_id: tournament.id_club,
+      address: tournament.address,
+      status: tournament.status
+    }))
+  } catch {
+    console.error('Erreur lors du chargement des tournois')
+    $q.notify({
+      color: 'negative',
+      message: 'Erreur lors du chargement des tournois',
+      icon: 'error'
+    })
+    
+    // Fallback avec des données fictives en cas d'erreur
+    tournaments.value = [
+      { 
+        id: 1, 
+        name: 'Tournoi National', 
+        start_date: '2025-06-10 09:00:00', 
+        end_date: '2025-06-11 18:00:00', 
+        club: clubsMap[1] || 'Club inconnu', // Sécuriser en cas d'undefined
+        club_id: 1,
+        address: 'Stade Paris', 
+        status: 'open'
+      },
+      { 
+        id: 2, 
+        name: 'Tournoi Régional', 
+        start_date: '2025-07-15 10:00:00', 
+        end_date: '2025-07-16 19:00:00', 
+        club: clubsMap[2] || 'Club inconnu', // Sécuriser en cas d'undefined
+        club_id: 2,
+        address: 'Gymnase Lyon', 
+        status: 'closed'
+      }
+    ]
+  } finally {
+    loading.value = false
+  }
+}
+
+// Fonction pour récupérer les catégories d'un tournoi
+async function fetchTournamentCategories(tournamentId: number): Promise<Category[]> {
+  try {
+    const { data } = await api.get<ApiCategory[]>(`/tournaments/${tournamentId}/categories`)
+    return data.map((category: ApiCategory) => ({
+      id: category.id,
+      name: category.name,
+      grade_min: category.grade_min_name,
+      grade_max: category.grade_max_name,
+      category_type: category.category_type_name
+    }))
+  } catch {
+    console.error(`Erreur lors du chargement des catégories pour le tournoi ${tournamentId}`)
+    
+    // Fallback avec des données fictives en cas d'erreur
+    const categoriesMap: Record<number, Category[]> = {
+      1: [{ id: 1, name: 'Ceinture Blanche - Junior', grade_min: 'Débutant', grade_max: 'Ceinture Orange', category_type: 'Junior' }],
+      2: [{ id: 2, name: 'Ceinture Noire - Senior', grade_min: 'Ceinture Marron', grade_max: 'Ceinture Noire 3ème Dan', category_type: 'Senior' }]
+    }
+    
+    // Récupération sécurisée des catégories
+    const categories = categoriesMap[tournamentId];
+    // Retourner un tableau vide si aucune catégorie n'est trouvée
+    return categories ? [...categories] : [];
+  }
+}
+
+// Fonction pour enrichir un tournoi avec ses catégories
+async function loadTournamentCategories(tournament: Tournament) {
+  // Vérifier si les catégories sont déjà chargées
+  if (!tournament.categories) {
+    const categories = await fetchTournamentCategories(tournament.id)
+    // Assigner les catégories au tournament
+    tournament.categories = categories
+  }
+}
 
 const showClubSuggestions = computed(() => clubSearch.value.length > 0)
 
@@ -322,16 +552,21 @@ const dialogClubsPaginated = computed(() => {
 })
 
 const filteredTournamentsSorted = computed(() => {
-  const filtered = tournaments.filter(tournament => {
+  const filtered = tournaments.value.filter(tournament => {
     const matchQuery = !searchQuery.value ||
       tournament.name.toLowerCase().includes(searchQuery.value.toLowerCase())
-    const tournamentDate = new Date(tournament.date)
+    
+    const tournamentStartDate = new Date(tournament.start_date)
     const matchStartDate = !startDate.value ||
-      tournamentDate >= new Date(startDate.value)
+      tournamentStartDate >= new Date(startDate.value)
+    
+    const tournamentEndDate = new Date(tournament.end_date)
     const matchEndDate = !endDate.value ||
-      tournamentDate <= new Date(endDate.value)
+      tournamentEndDate <= new Date(endDate.value)
+    
     const matchClub = selectedClubs.value.length === 0 ||
       selectedClubs.value.includes(tournament.club)
+    
     return matchQuery && matchStartDate && matchEndDate && matchClub
   })
 
@@ -347,10 +582,26 @@ watch(() => clubSearch.value, (val) => {
   if (val.length < 1) clubPage.value = 1
 })
 
-function toggleRow(row: Tournament) {
+watch(() => userStore.user?.id_tournament_waiting, () => {
+  // Force la mise à jour de l'interface lorsque le statut d'inscription change
+  // Cela permettra aux boutons d'inscription de se réactiver
+  
+  if (!loading.value) {
+    // Forcer un rafraîchissement de la liste des tournois
+    const currentTournaments = [...tournaments.value]
+    tournaments.value = []
+    setTimeout(() => {
+      tournaments.value = currentTournaments
+    }, 10)
+  }
+})
+
+async function toggleRow(row: Tournament) {
   if (isExpanded(row)) {
     expanded.value = expanded.value.filter(r => r.id !== row.id)
   } else {
+    // Charger les catégories avant d'expandre la ligne
+    await loadTournamentCategories(row)
     expanded.value = [row]
   }
 }
@@ -378,4 +629,106 @@ function removeClub(club: string) {
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('fr-FR')
 }
+
+function formatDateTime(dateString: string): string {
+  return new Date(dateString).toLocaleString('fr-FR')
+}
+
+// Ouvrir la boîte de dialogue de confirmation d'inscription
+function openConfirmDialog(tournamentId: number) {
+  // Empêcher la propagation de l'événement au parent (qui fermerait l'expansion)
+  event?.stopPropagation()
+  
+  // Vérifier si l'utilisateur est connecté
+  if (!userStore.user) {
+    $q.notify({
+      color: 'negative',
+      message: 'Vous devez être connecté pour vous inscrire à un tournoi',
+      icon: 'error'
+    })
+    return
+  }
+  
+  // Vérifier si l'utilisateur a déjà une inscription en attente
+  if (userStore.user.id_tournament_waiting) {
+    $q.notify({
+      color: 'warning',
+      message: 'Vous avez déjà une inscription en attente. Veuillez annuler celle-ci avant de vous inscrire à un nouveau tournoi.',
+      icon: 'warning',
+      timeout: 5000
+    })
+    return
+  }
+  
+  selectedTournamentId.value = tournamentId
+  selectedTournament.value = tournaments.value.find(t => t.id === tournamentId) || null
+  confirmDialogVisible.value = true
+}
+
+// S'inscrire au tournoi
+async function registerForTournament() {
+  if (!selectedTournamentId.value) return
+  
+  registering.value = true
+  
+  try {
+    // Appel API pour s'inscrire au tournoi
+    const response = await api.post<ApiResponse<unknown>>(`/tournaments/${selectedTournamentId.value}/register`)
+    const responseData = response.data
+    
+    // Mettre à jour l'utilisateur dans le store
+    if (userStore.user) {
+      userStore.user.id_tournament_waiting = selectedTournamentId.value
+    }
+    
+    // Fermer la boîte de dialogue
+    confirmDialogVisible.value = false
+    
+    // Notification de succès
+    $q.notify({
+      color: 'positive',
+      message: typeof responseData === 'object' && responseData && 'message' in responseData 
+        ? responseData.message as string
+        : 'Inscription au tournoi enregistrée avec succès',
+      icon: 'check_circle',
+      timeout: 3000
+    })
+    
+    // Rediriger vers la page de profil pour voir le tournoi en attente
+    setTimeout(() => {
+      router.push('/profile')
+    }, 1000)
+    
+  } catch {
+    console.error('Erreur lors de l\'inscription au tournoi')
+    
+    // Message par défaut en cas d'erreur
+    const errorMessage = 'Erreur lors de l\'inscription au tournoi. Veuillez réessayer.'
+    
+    $q.notify({
+      color: 'negative',
+      message: errorMessage,
+      icon: 'error',
+      timeout: 5000
+    })
+  } finally {
+    registering.value = false
+  }
+}
+
+// Précharger les données utilisateur si nécessaire
+onMounted(async () => {
+  if (!userStore.user) {
+    await userStore.fetchSession()
+  }
+  
+  // Charger les tournois
+  await fetchTournaments()
+})
 </script>
+
+<style scoped>
+.hover-row:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+</style>

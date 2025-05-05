@@ -22,7 +22,10 @@ module.exports = async function (fastify) {
   fastify.put("/users/:id", { preHandler: verifyAuth }, (req, reply) => userController.updateUserInfo(req, reply));
   
   // Routes tournois
+  fastify.get("/tournaments", (req, reply) => tournamentController.getAllTournaments(req, reply));
   fastify.get("/tournaments/:id", (req, reply) => tournamentController.getTournamentById(req, reply));
+  fastify.get("/tournaments/:id/categories", (req, reply) => tournamentController.getCategoriesByTournamentId(req, reply));
+  fastify.post("/tournaments/:id/register", { preHandler: verifyAuth }, (req, reply) => tournamentController.registerForTournament(req, reply));
   
   // Routes administrateur
   fastify.get("/admin/users", { preHandler: verifyAuth }, (req, reply) => userController.getAllUsers(req, reply));

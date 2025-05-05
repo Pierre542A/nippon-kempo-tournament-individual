@@ -221,7 +221,7 @@ class UserService {
       const allowedFields = [
         'first_name', 'last_name', 'email', 'phone', 
         'birth_date', 'weight', 'nationality', 
-        'id_grade', 'id_club', 'id_role', 'is_active'
+        'id_grade', 'id_club', 'id_role', 'is_active', 'id_tournament_waiting'
       ];
       
       const filteredData = {};
