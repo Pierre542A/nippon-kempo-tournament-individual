@@ -23,6 +23,8 @@ const dbConfig = {
 
 const rateLimit = require("./middlewares/rateLimit");
 const userRoutes = require("./routes/userRoutes");
+const gradeRoutes = require("./routes/gradeRoutes");
+const clubRoutes = require("./routes/clubRoutes");
 const UserService = require("./services/userService");
 const TournamentService = require("./services/TournamentService"); // <-- Ajoutez cette ligne
 
@@ -61,6 +63,8 @@ const start = async () => {
     fastify.decorate("tournamentService", tournamentServiceInstance); // <-- Ajoutez cette ligne
 
     fastify.register(userRoutes);
+    fastify.register(gradeRoutes);
+    fastify.register(clubRoutes);
 
     await fastify.listen({ port: 3000, host: "0.0.0.0" });
   } catch (err) {

@@ -3,9 +3,19 @@
     <!-- Header -->
     <div class="row justify-center q-mb-xl">
       <div class="column items-center">
-        <q-avatar size="150px" class="shadow-5">
-          <q-img :src="avatarUrl" />
-        </q-avatar>
+        <div class="row items-center">
+          <q-avatar size="150px" class="shadow-5">
+            <q-img :src="avatarUrl" :key="avatarKey" />
+          </q-avatar>
+          <!-- Bouton de rafraîchissement des données -->
+          <q-btn 
+            flat round color="grey-7" icon="refresh" 
+            class="q-ml-sm" size="sm"
+            @click="refreshUserData" 
+            :loading="refreshingData"
+            tooltip="Rafraîchir les données">
+          </q-btn>
+        </div>
         <h1 class="q-mt-md text-weight-bold">{{ fullName }}</h1>
         <q-btn to="/profile/edit" color="primary" label="Modifier mon profil" class="q-mt-sm" icon="edit" />
       </div>
@@ -50,6 +60,14 @@
                 <q-item-section>
                   <q-item-label caption>Club</q-item-label>
                   <q-item-label>{{ club }}</q-item-label>
+                </q-item-section>
+              </q-item>
+              
+              <!-- Ajout d'une ligne pour afficher la seed actuelle (utile pour débogage) -->
+              <q-item v-if="debug">
+                <q-item-section>
+                  <q-item-label caption>Avatar Seed</q-item-label>
+                  <q-item-label>{{ store.user?.avatar_seed || 'default' }}</q-item-label>
                 </q-item-section>
               </q-item>
             </q-list>
@@ -257,30 +275,73 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, nextTick, watch } from 'vue'
 import { useUserStore } from '../stores/user'
 import type { QTableProps } from 'quasar'
 import { useQuasar } from 'quasar'
 import axios from 'axios'
+import { useRoute } from 'vue-router'
 
 const store = useUserStore()
 const $q = useQuasar()
+const route = useRoute()
 
 // État de chargement
 const loading = ref(false)
+const refreshingData = ref(false)
+const debug = ref(false) // Mettre à true pour afficher la seed d'avatar actuelle
+
+// Avatar key pour forcer le rechargement de l'image
+const avatarKey = ref(0)
 
 // État pour la désinscription
 const confirmDialogVisible = ref(false)
 const cancelingRegistration = ref(false)
 
+// Fonction pour rafraîchir les données utilisateur
+async function refreshUserData() {
+  refreshingData.value = true
+  try {
+    // Forcer un rechargement complet des données
+    await store.fetchSession()
+    console.log("Avatar seed actualisé:", store.user?.avatar_seed)
+    console.log("URL d'avatar actualisée:", store.avatarUrl)
+    
+    // Incrémenter la clé pour forcer le rechargement de l'image
+    avatarKey.value++
+    
+    // Attendre le prochain cycle de rendu
+    await nextTick()
+  } catch (error) {
+    console.error("Erreur lors du rafraîchissement des données:", error)
+    $q.notify({
+      color: 'negative',
+      message: 'Erreur lors du rafraîchissement des données',
+      icon: 'error'
+    })
+  } finally {
+    refreshingData.value = false
+  }
+}
+
+// Surveiller les changements de route pour rafraîchir les données
+watch(() => route.fullPath, async (newPath, oldPath) => {
+  if (newPath.includes('/profile') && oldPath?.includes('/profile/edit')) {
+    console.log('Retour depuis l\'écran d\'édition, rafraîchissement des données...')
+    await refreshUserData()
+  }
+})
+
 // Charge user+stats
 onMounted(async () => {
-  await store.fetchSession();
+  console.log('ProfilePage - onMounted')
+  // Rafraîchir explicitement les données utilisateur
+  await refreshUserData()
 
   // Léger délai avant de charger les infos du tournoi
   setTimeout(() => {
-    fetchTournamentData();
-  }, 500);
+    fetchTournamentData()
+  }, 500)
 })
 
 // Perso

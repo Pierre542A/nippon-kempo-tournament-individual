@@ -28,7 +28,7 @@
 
     <!-- Reste de la page ... -->
     <div class="q-pa-md q-mt-xl">
-      <h2 class="text-h4 text-center text-weight-bold">Un Tournoi Unique</h2>
+      <h2 class="text-h4 text-center text-weight-bold">Un Sport Unique</h2>
       <p class="text-body1 text-center q-mt-md max-width-800 q-mx-auto">
         Le Nippon Kempo Tournament est l'événement phare de l'année pour tous les passionnés d'arts martiaux japonais. 
         Cette compétition unique en son genre rassemble les meilleurs pratiquants de Nippon Kempo venus de toute la France 

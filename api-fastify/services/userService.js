@@ -64,7 +64,8 @@ class UserService {
           u.email,
           u.phone,
           u.password,
-          u.is_active
+          u.is_active,
+          u.avatar_seed
         FROM users u
         LEFT JOIN grades g ON u.id_grade = g.id
         LEFT JOIN clubs  c ON u.id_club   = c.id
@@ -218,9 +219,11 @@ class UserService {
   // Méthode pour mettre à jour les informations d'un utilisateur (utilisée par les admins)
   async updateUserInfo(userId, updateData) {
     try {
+      console.log('Données reçues pour la mise à jour :', JSON.stringify(updateData, null, 2));
+      
       // Vérifier que l'utilisateur existe
       const [userExists] = await this.mysql.execute(
-        `SELECT id FROM users WHERE id = ?`,
+        `SELECT id, email FROM users WHERE id = ?`,
         [userId]
       );
       
@@ -228,11 +231,80 @@ class UserService {
         throw new Error("Utilisateur non trouvé");
       }
       
+      // Validation de l'email
+      if (updateData.email) {
+        // Regex pour validation email
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailRegex.test(updateData.email)) {
+          throw new Error("Format d'adresse email invalide");
+        }
+        
+        // Vérifier si l'email est déjà utilisé par un autre utilisateur
+        if (updateData.email !== userExists[0].email) {
+          const [emailExists] = await this.mysql.execute(
+            `SELECT id FROM users WHERE email = ? AND id != ?`,
+            [updateData.email, userId]
+          );
+          
+          if (emailExists.length > 0) {
+            throw new Error("Cette adresse email est déjà utilisée par un autre compte");
+          }
+        }
+      }
+      
+      // Validation du numéro de téléphone (si fourni)
+      if (updateData.phone) {
+        // Regex pour numéro de téléphone international
+        const phoneRegex = /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,4}[-\s.]?[0-9]{1,9}$/;
+        if (!phoneRegex.test(updateData.phone)) {
+          throw new Error("Format de numéro de téléphone invalide");
+        }
+      }
+      
+      // Validation du poids (si fourni)
+      if (updateData.weight !== undefined) {
+        const weight = parseFloat(updateData.weight);
+        if (isNaN(weight)) {
+          throw new Error("Le poids doit être un nombre");
+        }
+        if (weight <= 0 || weight > 250) {
+          throw new Error("Le poids doit être compris entre 0 et 250 kg");
+        }
+      }
+      
+      // Validation de la date de naissance (si fournie)
+      if (updateData.birth_date) {
+        const birthDate = new Date(updateData.birth_date);
+        if (isNaN(birthDate.getTime())) {
+          throw new Error("Format de date de naissance invalide");
+        }
+        
+        // Vérifier que la date n'est pas dans le futur
+        if (birthDate > new Date()) {
+          throw new Error("La date de naissance ne peut pas être dans le futur");
+        }
+        
+        // Vérifier l'âge minimum (par exemple 10 ans)
+        const minAgeDate = new Date();
+        minAgeDate.setFullYear(minAgeDate.getFullYear() - 10);
+        if (birthDate > minAgeDate) {
+          throw new Error("L'âge minimum est de 10 ans");
+        }
+        
+        // Vérifier l'âge maximum (par exemple 120 ans)
+        const maxAgeDate = new Date();
+        maxAgeDate.setFullYear(maxAgeDate.getFullYear() - 120);
+        if (birthDate < maxAgeDate) {
+          throw new Error("L'âge maximum est de 120 ans");
+        }
+      }
+      
       // Filtrer les champs autorisés
       const allowedFields = [
         'first_name', 'last_name', 'email', 'phone', 
         'birth_date', 'weight', 'nationality', 
-        'id_grade', 'id_club', 'id_role', 'is_active', 'id_tournament_waiting'
+        'id_grade', 'id_club', 'id_role', 'is_active', 'id_tournament_waiting',
+        'avatar_seed', 'password', 'id_gender' // Ajout de id_gender à la liste
       ];
       
       const filteredData = {};
@@ -254,10 +326,15 @@ class UserService {
       
       const values = [...Object.values(filteredData), userId];
       
+      console.log('Requête SQL:', `UPDATE users SET ${setClause} WHERE id = ?`);
+      console.log('Valeurs:', values);
+      
       const [result] = await this.mysql.execute(
         `UPDATE users SET ${setClause} WHERE id = ?`,
         values
       );
+      
+      console.log('Résultat de la mise à jour:', result);
       
       if (result.affectedRows === 0) {
         throw new Error("La mise à jour a échoué");
@@ -270,7 +347,8 @@ class UserService {
       };
     } catch (error) {
       console.error('Erreur SQL updateUserInfo:', error);
-      throw new Error(`Erreur lors de la mise à jour de l'utilisateur: ${error.message}`);
+      // Propagez l'erreur pour qu'elle soit correctement gérée par le contrôleur
+      throw error;
     }
   }
   

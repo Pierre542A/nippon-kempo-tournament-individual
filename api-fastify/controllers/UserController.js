@@ -19,36 +19,36 @@ class UserController {
         return reply.code(400).send({ error: 'Adresse email et mot de passe obligatoires.' });
       }
 
-      /* ─────── 1. Récupération utilisateur ─────── */
+      // Récupération utilisateur
       const user = await this.userService.getUserByEmail(email);
-      if (!user || !(await bcrypt.compare(password, user.password))) {
+      if (!user) {
         return reply.code(401).send({ error: 'Adresse email ou mot de passe incorrect.' });
       }
 
-      /* ─────── 2. Ré‑activation éventuelle ─────── */
+      // Vérification si compte actif
       if (!user.is_active) {
-        await this.userService.reactivateUser(user.id);
-
-        await sendEmail(
-          user.email,
-          'Votre compte Nippon Kempo Tournament est de retour ! ✨',
-          `<p>Bonjour ${user.first_name},<br><br>
-        Votre compte vient d'être ré‑activé.<br>
-        Vous pouvez de nouveau vous connecter.<br><br>
-        À bientôt !<br>Nippon Kempo Tournament</p>`
-        );
+        return reply.code(403).send({
+          error: 'Compte supprimé ou désactivé. Connexion impossible, contactez l\'administrateur.'
+        });
       }
 
-      /* ─────── 3. Génération du JWT ─────── */
+      // Vérification du mot de passe
+      const passwordValid = await bcrypt.compare(password, user.password);
+      if (!passwordValid) {
+        return reply.code(401).send({ error: 'Adresse email ou mot de passe incorrect.' });
+      }
+
+      // Génération du JWT
       const token = jwt.sign(
         {
           id: user.id,
-          role: user.id_role // Ajout du rôle dans le token
+          role: user.id_role
         },
         this.jwtSecret,
         { expiresIn: '24h' }
       );
 
+      // Configuration du cookie
       reply.setCookie('auth_token_nippon', token, {
         httpOnly: true,
         secure: false,
@@ -57,8 +57,7 @@ class UserController {
         maxAge: 24 * 60 * 60
       });
 
-
-      /* ─────── 4. Réponse attendue par le front ─────── */
+      // Réponse
       return reply.send({
         success: true,
         user: {
@@ -77,8 +76,8 @@ class UserController {
     try {
       const user = req.userFromDb // injecté par verifyAdminLogin
 
-      const token = jwt.sign({ 
-        id: user.id, 
+      const token = jwt.sign({
+        id: user.id,
         role: user.id_role // Ajout du rôle dans le token
       }, this.jwtSecret, { expiresIn: '24h' })
 
@@ -107,10 +106,10 @@ class UserController {
     try {
       const user = await this.userService.getUserById(req.user.id);
       if (!user) return reply.status(404).send({ error: "Utilisateur non trouvé" });
-  
+
       // Récupérer les statistiques de l'utilisateur
       const stats = await this.userService.getUserStats(user.id);
-      
+
       delete user.password; // pour sécurité
       reply.send({ user, stats });
     } catch (error) {
@@ -156,40 +155,56 @@ class UserController {
     try {
       const userData = req.body;
 
+      // Vérifications supplémentaires (normalement gérées par le middleware hashPassword)
+      if (!userData.password || userData.password.length < 8) {
+        return reply.code(400).send({
+          error: 'Le mot de passe doit contenir au moins 8 caractères.'
+        });
+      }
+
       // Crée l'utilisateur avec le mdp déjà hashé par le middleware
-      const newUser = await this.userService.createUser(userData);
+      try {
+        const newUser = await this.userService.createUser(userData);
 
-      // Recherche de l'utilisateur complet pour obtenir id_role
-      const user = await this.userService.getUserById(newUser.id);
+        // Recherche de l'utilisateur complet pour obtenir id_role
+        const user = await this.userService.getUserById(newUser.id);
 
-      // Connecte automatiquement l'utilisateur après création
-      const token = jwt.sign(
-        { 
-          id: newUser.id,
-          role: user.id_role // Ajout du rôle dans le token 
-        },
-        this.jwtSecret,
-        { expiresIn: '24h' }
-      );
+        // Connecte automatiquement l'utilisateur après création
+        const token = jwt.sign(
+          {
+            id: newUser.id,
+            role: user.id_role
+          },
+          this.jwtSecret,
+          { expiresIn: '24h' }
+        );
 
-      reply.setCookie('auth_token_nippon', token, {
-        httpOnly: true,
-        secure: false,
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 24 * 60 * 60
-      });
+        reply.setCookie('auth_token_nippon', token, {
+          httpOnly: true,
+          secure: false,
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 24 * 60 * 60
+        });
 
-      // Réponse avec infos utilisateur nécessaires au front
-      reply.send({
-        success: true,
-        user: {
-          firstName: userData.first_name,
-          lastName: userData.last_name,
+        // Réponse avec infos utilisateur nécessaires au front
+        reply.send({
+          success: true,
+          user: {
+            firstName: userData.first_name,
+            lastName: userData.last_name,
+          }
+        });
+      } catch (createError) {
+        // Si l'erreur concerne un email déjà utilisé, on renvoie une erreur 400
+        if (createError.message.includes('email est déjà utilisée')) {
+          return reply.code(400).send({ error: createError.message });
         }
-      });
+        // Sinon on remonte l'erreur
+        throw createError;
+      }
     } catch (error) {
-      console.error('🛑 Signup error:', error);      // <-- log complet
+      console.error('🛑 Signup error:', error.message);
       reply.status(500).send({ error: error.message });
     }
   }
@@ -197,21 +212,21 @@ class UserController {
   async cancelTournamentRegistration(req, reply) {
     try {
       const userId = req.params.id;
-      
+
       // Vérifier que l'utilisateur agit sur son propre compte ou est admin
       if (userId != req.user.id && req.user.role !== 1) {
         return reply.code(403).send({ error: "Non autorisé" });
       }
-      
+
       // Vérifier que l'utilisateur a bien un tournoi en attente
       const user = await this.userService.getUserById(userId);
       if (!user || !user.id_tournament_waiting) {
         return reply.code(400).send({ error: "Aucune inscription en attente pour cet utilisateur" });
       }
-      
+
       // Annuler l'inscription
       await this.userService.cancelTournamentRegistration(userId);
-      
+
       return reply.send({
         success: true,
         message: "Désinscription effectuée avec succès"
@@ -227,120 +242,67 @@ class UserController {
     try {
       const userId = req.params.id;
       const updateData = req.body;
-      
+  
+      console.log('Données reçues pour mise à jour du profil :', JSON.stringify(updateData, null, 2));
+  
       // Vérifier que l'utilisateur est admin ou agit sur son propre compte
       if (userId != req.user.id && req.user.role !== 1) {
         return reply.code(403).send({ error: "Non autorisé" });
       }
-
+  
       // Vérifier si l'utilisateur existe
       const user = await this.userService.getUserById(userId);
       if (!user) {
         return reply.code(404).send({ error: "Utilisateur non trouvé" });
       }
-
-      // Effectuer la mise à jour
-      await this.userService.updateUserInfo(userId, updateData);
-      
-      return reply.send({
-        success: true,
-        message: "Information utilisateur mise à jour avec succès"
-      });
+  
+      // Vérification du mot de passe si modification demandée
+      if (updateData.password && updateData.current_password) {
+        const isPasswordValid = await bcrypt.compare(updateData.current_password, user.password);
+        if (!isPasswordValid) {
+          return reply.code(400).send({ error: "Mot de passe actuel incorrect" });
+        }
+        // Le mot de passe actuel est correct, on peut continuer
+        console.log('Mot de passe vérifié avec succès');
+        
+        // Hasher le nouveau mot de passe
+        const saltRounds = 12;
+        updateData.password = await bcrypt.hash(updateData.password, saltRounds);
+        
+        // Supprimer le mot de passe actuel des données à mettre à jour
+        delete updateData.current_password;
+        delete updateData.confirmPassword;
+      }
+  
+      try {
+        // Effectuer la mise à jour
+        const result = await this.userService.updateUserInfo(userId, updateData);
+  
+        console.log('Résultat mise à jour profil :', result);
+  
+        return reply.send({
+          success: true,
+          message: "Information utilisateur mise à jour avec succès"
+        });
+      } catch (updateError) {
+        // Log de l'erreur pour debug
+        console.error('Erreur spécifique updateUserInfo:', updateError);
+        
+        if (updateError.message.includes('email est déjà utilisée')) {
+          return reply.code(409).send({ error: updateError.message });
+        }
+        
+        throw updateError;
+      }
     } catch (error) {
-      console.error('Erreur updateUserInfo:', error);
-      return reply.code(500).send({ error: "Erreur interne serveur" });
+      console.error('Erreur générale updateUserInfo:', error);
+      return reply.code(500).send({
+        error: error.message || "Erreur interne serveur"
+      });
     }
   }
 
   //jusqu'a la c'est ok
-
-  async updateUser(req, reply) {
-    try {
-      const targetUserId = req.params.id;
-
-      // Vérifier que l'utilisateur est admin ou agit sur son propre compte
-      if (targetUserId != req.user.id && req.user.role !== 1) {
-        return reply.code(403).send({ error: "Non autorisé" });
-      }
-
-      const targetUser = await this.userService.getUserById(targetUserId);
-      if (!targetUser) {
-        return reply.status(404).send({ error: "Utilisateur non trouvé" });
-      }
-
-      // On crée une copie des données pour ne pas modifier l'original
-      const updateData = { ...req.body };
-
-      // Si changement de mot de passe
-      if (updateData.user_password) {
-        if (!updateData.current_password) {
-          return reply.status(400).send({
-            error: "Le mot de passe actuel est requis pour changer le mot de passe."
-          });
-        }
-
-        const isValid = await bcrypt.compare(
-          updateData.current_password,
-          targetUser.user_password
-        );
-
-        if (!isValid) {
-          return reply.status(400).send({ error: "Mot de passe actuel incorrect" });
-        }
-
-        // On supprime le current_password car ce n'est pas une colonne de la DB
-        delete updateData.current_password;
-      }
-
-      // On effectue la mise à jour avant d'envoyer les notifications
-      const result = await this.userService.updateUser(targetUserId, updateData);
-
-      // Gestion des notifications après la mise à jour réussie
-      const emailChange = updateData.user_email && updateData.user_email !== targetUser.user_email;
-      const notificationEmail = emailChange ? updateData.user_email : targetUser.user_email;
-
-      // Si le mot de passe a été changé, envoi de la notification
-      if (updateData.user_password) {
-        const pwdSubject = "Votre mot de passe a été modifié";
-        const pwdContent = `
-        <p>Bonjour ${targetUser.user_first_name},<br><br>
-        Votre mot de passe a été modifié avec succès.<br><br>
-        Si vous n'êtes pas à l'origine de ce changement, veuillez réinitialiser votre mot de passe immédiatement.<br><br>
-        Cordialement,<br>
-        Votre équipe Sensation CBD
-        </p>`;
-
-        await sendEmail(notificationEmail, pwdSubject, pwdContent);
-      }
-
-      // Si l'email a été changé, envoi du mail de confirmation
-      if (emailChange) {
-        const emailConfirmationToken = jwt.sign(
-          { user_id: targetUserId },
-          this.jwtSecret,
-          { expiresIn: "1h" }
-        );
-
-        const confirmationUrl = `${process.env.APP_URL}/email_confirmation?token=${emailConfirmationToken}`;
-        const emailSubject = "Veuillez confirmer votre nouvelle adresse email 🌱";
-        const emailContent = `
-        <p>Bonjour ${targetUser.user_first_name},<br><br>
-        Vous avez récemment modifié votre adresse email. Pour confirmer cette modification, veuillez cliquer sur le lien ci-dessous :<br><br>
-        <a href="${confirmationUrl}" style="color: white; background-color: #4caf50; text-decoration: none; font-weight: bold; border-radius: 5px; padding: 10px;">Confirmer mon adresse email</a><br><br>
-        <i>(Pour votre sécurité, ce lien expirera dans 1 heure.)</i><br><br>
-        Si vous n'êtes pas à l'origine de cette demande, veuillez nous contacter immédiatement.<br><br>
-        Cordialement,<br>
-        Votre équipe Sensation CBD
-        </p>`;
-
-        await sendEmail(notificationEmail, emailSubject, emailContent);
-      }
-
-      reply.send(result);
-    } catch (error) {
-      reply.status(500).send({ error: error.message });
-    }
-  }
 
   async deleteUser(req, reply) {
     try {
@@ -374,7 +336,7 @@ class UserController {
       if (req.user.role !== 1) {
         return reply.code(403).send({ error: "Non autorisé - Accès réservé aux administrateurs" });
       }
-      
+
       const users = await this.userService.getAllUsers();
       reply.send({ users });
     } catch (error) {

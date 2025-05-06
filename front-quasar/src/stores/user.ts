@@ -83,17 +83,33 @@ export const useUserStore = defineStore('user', () => {
     })
 
     /* ------------------------------ actions ---------------------------- */
-    /** Vérifie s’il existe un cookie auth et récupère /me */
+    /** Vérifie s'il existe un cookie auth et récupère /me */
     async function fetchSession() {
         loading.value = true
         try {
+            // Utilisez une option pour éviter le cache du navigateur
             const { data } = await axios.get<{ user: User; stats: Stats }>(
-                `${import.meta.env.VITE_API_URL}/me`
+                `${import.meta.env.VITE_API_URL}/me`,
+                {
+                    // Ajout d'un paramètre aléatoire pour éviter la mise en cache
+                    params: { _t: new Date().getTime() }
+                }
             )
             console.log("Données reçues de /me:", data)
+
+            // S'assurer que l'objet User reçu contient bien la propriété avatar_seed
+            if (data.user && !data.user.avatar_seed) {
+                console.warn("L'objet User reçu du backend ne contient pas de avatar_seed, utilisation de la valeur par défaut");
+                data.user.avatar_seed = 'default';
+            } else {
+                console.log("Avatar seed reçu du backend:", data.user.avatar_seed);
+            }
+
+            // Mise à jour des données du store
             user.value = data.user
             stats.value = data.stats
-        } catch {
+        } catch (error) {
+            console.error("Erreur lors de la récupération des données de session:", error);
             user.value = null
             stats.value = null
         } finally {
@@ -108,10 +124,10 @@ export const useUserStore = defineStore('user', () => {
             await axios.post(`${import.meta.env.VITE_API_URL}/login`, { email, password })
             await fetchSession()
             return true
-        } catch {
-            return false
-        } finally {
+        } catch (error) {
+            // Propager l'erreur au lieu de simplement retourner false
             loading.value = false
+            throw error
         }
     }
 
@@ -125,10 +141,10 @@ export const useUserStore = defineStore('user', () => {
             await axios.post(`${import.meta.env.VITE_API_URL}/signup`, payload)
             await fetchSession()
             return true
-        } catch {
-            return false
-        } finally {
+        } catch (error) {
+            // Propager l'erreur au lieu de simplement retourner false
             loading.value = false
+            throw error
         }
     }
 

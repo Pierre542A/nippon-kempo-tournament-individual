@@ -28,7 +28,7 @@
                     </div>
                   </q-avatar>
                   <div class="text-caption q-mt-sm text-grey-7">
-                    Cliquez pour personnaliser votre avatar
+                    Cliquez pour personnaliser votre avatar (Seed actuelle: {{ currentSeed }})
                   </div>
                 </div>
               </div>
@@ -56,13 +56,18 @@
                 </div>
                 <div class="col-12 col-sm-6">
                   <q-input v-model.number="form.weight" type="number" label="Poids (kg)"
-                           filled :rules="[v => !!v || 'Le poids est requis']" />
+                           filled :rules="[
+                             v => !!v || 'Le poids est requis',
+                             v => v > 0 || 'Le poids doit être supérieur à 0',
+                             v => v <= 250 || 'Le poids doit être inférieur à 250kg'
+                           ]" />
                 </div>
                 <div class="col-12 col-sm-6">
                   <q-select v-model="form.grade" :options="gradeOptions"
                             option-value="id" option-label="name"
                             label="Grade" filled emit-value map-options
-                            :rules="[v => !!v || 'Le grade est requis']" />
+                            :rules="[v => !!v || 'Le grade est requis']" 
+                            :loading="loading.grades" />
                 </div>
                 <div class="col-12 col-sm-6">
                   <q-select v-model="form.nationality" :options="['Française', 'Autre']"
@@ -73,10 +78,14 @@
                   <q-select v-model="form.club" :options="clubOptions"
                             option-value="id" option-label="name"
                             label="Club" filled emit-value map-options
-                            :rules="[v => !!v || 'Le club est requis']" />
+                            :rules="[v => !!v || 'Le club est requis']" 
+                            :loading="loading.clubs" />
                 </div>
                 <div class="col-12">
-                  <q-input v-model="form.phone" label="Téléphone" filled />
+                  <q-input v-model="form.phone" label="Téléphone" filled 
+                          :rules="[
+                            v => !v || validatePhone(v) || 'Format de téléphone invalide'
+                          ]" />
                 </div>
                 <div class="col-12">
                   <q-select v-model="form.gender" :options="genderOptions"
@@ -107,9 +116,7 @@
                           <div class="col-12 col-sm-6">
                             <q-input v-model="form.confirmPassword"
                                      label="Confirmer" type="password" filled 
-                                     :rules="[
-                                       v => !form.newPassword || v === form.newPassword || 'Les mots de passe ne correspondent pas'
-                                     ]" />
+                                     :rules="[validatePasswordMatch]" />
                           </div>
                         </div>
                       </q-card-section>
@@ -129,7 +136,8 @@
                 </div>
                 <div class="col">
                   <q-btn label="Sauvegarder" type="submit"
-                         color="primary" class="full-width" />
+                         color="primary" class="full-width" 
+                         :loading="loading.submit" />
                 </div>
               </div>
               
@@ -189,7 +197,7 @@
 
         <q-card-actions align="right">
           <q-btn flat label="Annuler" color="primary" v-close-popup />
-          <q-btn flat label="Supprimer" color="negative" @click="deleteAccount" />
+          <q-btn flat label="Supprimer" color="negative" @click="deleteAccount" :loading="loading.delete" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -197,15 +205,56 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { useUserStore } from '../stores/user'
 
+// Interfaces pour typer correctement les réponses API
+interface Grade {
+  id: number;
+  name: string;
+}
+
+interface Club {
+  id: number;
+  name: string;
+}
+
+interface ApiGradesResponse {
+  success: boolean;
+  grades: Grade[];
+}
+
+interface ApiClubsResponse {
+  success: boolean;
+  clubs: Club[];
+}
+
+// Interface pour typer les erreurs
+interface ApiError {
+  response?: {
+    status?: number
+    data?: {
+      error?: string;
+      message?: string;
+    };
+  };
+  message?: string;
+}
+
 const $q      = useQuasar()
 const router  = useRouter()
 const store   = useUserStore()
+
+// État de chargement pour les différentes opérations
+const loading = ref({
+  grades: false,
+  clubs: false,
+  submit: false,
+  delete: false
+})
 
 /* -------------------- constantes DiceBear --------------------------- */
 const STYLE = 'avataaars'
@@ -215,6 +264,10 @@ const SIZE  = 150
 const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const validateEmail = (e: string) => emailRx.test(e)
 
+// Regex pour validation de numéro de téléphone (format international)
+const phoneRx = /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,4}[-\s.]?[0-9]{1,9}$/
+const validatePhone = (p: string) => phoneRx.test(p)
+
 const getAvatarUrl = (seed: string) =>
   `https://api.dicebear.com/9.x/${STYLE}/svg?seed=${seed}&size=${SIZE}`
 
@@ -223,30 +276,14 @@ const randSeed = () => Math.random().toString(36).slice(2, 10)
 /* -------------------- formulaire ----------------------------------- */
 interface FormData {
   firstName: string; lastName: string; email: string; birthDate: string
-  grade: number; club: number; currentPassword: string; gender: number
+  grade: number | null; club: number | null; currentPassword: string; gender: number
   newPassword: string; confirmPassword: string; avatarSeed: string
   weight: number; phone: string; nationality: string
 }
 
 // Options pour les champs select avec id et nom 
-const gradeOptions = [
-  { id: 1, name: 'Ceinture blanche' }, 
-  { id: 2, name: 'Ceinture jaune' },  
-  { id: 3, name: 'Ceinture orange' },
-  { id: 4, name: 'Ceinture verte' },   
-  { id: 5, name: 'Ceinture bleue' },  
-  { id: 6, name: 'Ceinture marron' },
-  { id: 7, name: 'Ceinture noire 1er dan' }, 
-  { id: 8, name: 'Ceinture noire 2ème dan' }, 
-  { id: 9, name: 'Ceinture noire 3ème dan' }
-]
-
-const clubOptions = [
-  { id: 1, name: 'Nippon Kempo Paris' }, 
-  { id: 2, name: 'Nippon Kempo Lyon' },
-  { id: 3, name: 'Nippon Kempo Marseille' }, 
-  { id: 4, name: 'Nippon Kempo Bordeaux' }
-]
+const gradeOptions = ref<Grade[]>([])
+const clubOptions = ref<Club[]>([])
 
 const genderOptions = [
   { id: 1, name: 'Homme' },
@@ -260,12 +297,23 @@ const form = ref<FormData>({
   weight: 0, phone: '', nationality: 'Française'
 })
 
+const validatePasswordMatch = () => {
+  console.log('Validation des mots de passe:');
+  console.log('Nouveau mot de passe:', form.value.newPassword);
+  console.log('Confirmation:', form.value.confirmPassword);
+  console.log('Égaux?', form.value.newPassword === form.value.confirmPassword);
+  
+  return !form.value.newPassword || 
+         form.value.newPassword === form.value.confirmPassword || 
+         'Les mots de passe ne correspondent pas';
+}
+
 /* -------------------- dialogs ------------------------------------- */
 const showAvatarDialog = ref(false)
 const showDeleteDialog = ref(false)
 
 /* -------------------- avatar actuel -------------------------------- */
-const currentSeed = ref(store.user?.avatar_seed ?? 'default')
+const currentSeed = ref('default')
 const currentAvatarUrl = computed(() => getAvatarUrl(currentSeed.value))
 
 /* 20 seeds pour la modale */
@@ -274,22 +322,96 @@ const refreshSeeds = () => {
   avatarSeeds.value = Array.from({ length: 20 }, randSeed)
 }
 const selectAvatar = (seed: string) => {
-  currentSeed.value       = seed
-  form.value.avatarSeed   = seed
+  currentSeed.value = seed
+  form.value.avatarSeed = seed
+  console.log('Avatar sélectionné, nouvelle seed:', seed);
   $q.notify({ color: 'positive', message: 'Avatar sélectionné' })
   showAvatarDialog.value = false
 }
 
-/* -------------------- init ----------------------------------------- */
-onMounted(() => {
-  const u = store.user!
+/* -------------------- Chargement des données ---------------------- */
+const fetchGrades = async () => {
+  loading.value.grades = true
+  try {
+    const gradesResponse = await axios.get<ApiGradesResponse>(`${import.meta.env.VITE_API_URL}/grades`)
+    if (gradesResponse.data?.success && Array.isArray(gradesResponse.data.grades)) {
+      gradeOptions.value = gradesResponse.data.grades
+    }
+  } catch (error) {
+    console.error('Erreur chargement des grades:', error)
+    const err = error as ApiError
+    $q.notify({
+      color: 'negative',
+      message: err.response?.data?.error || err.response?.data?.message || 'Erreur lors du chargement des grades'
+    })
+  } finally {
+    loading.value.grades = false
+  }
+}
+
+const fetchClubs = async () => {
+  loading.value.clubs = true
+  try {
+    const clubsResponse = await axios.get<ApiClubsResponse>(`${import.meta.env.VITE_API_URL}/clubs`)
+    if (clubsResponse.data?.success && Array.isArray(clubsResponse.data.clubs)) {
+      clubOptions.value = clubsResponse.data.clubs
+    }
+  } catch (error) {
+    console.error('Erreur chargement des clubs:', error)
+    const err = error as ApiError
+    $q.notify({
+      color: 'negative',
+      message: err.response?.data?.error || err.response?.data?.message || 'Erreur lors du chargement des clubs'
+    })
+  } finally {
+    loading.value.clubs = false
+  }
+}
+
+/* -------------------- Remplir le formulaire avec les données utilisateur -------------------- */
+const fillFormWithUserData = () => {
+  if (!store.user) {
+    console.error('Utilisateur non disponible dans le store')
+    return false
+  }
+  
+  const u = store.user
+  console.log('Remplissage du formulaire avec les données utilisateur:', u);
+  
+  // Définir une valeur par défaut pour birthDate pour éviter le undefined
+  let birthDateStr = ''
+  if (u.birth_date) {
+    // Convertir le format ISO en YYYY-MM-DD
+    try {
+      // Gérer soit un format ISO complet, soit juste la partie date
+      const birthDate = new Date(u.birth_date)
+      if (!isNaN(birthDate.getTime())) {
+        // Formater en YYYY-MM-DD
+        const year = birthDate.getFullYear()
+        const month = String(birthDate.getMonth() + 1).padStart(2, '0')
+        const day = String(birthDate.getDate()).padStart(2, '0')
+        birthDateStr = `${year}-${month}-${day}`
+      }
+    } catch (error) {
+      console.error('Erreur lors du formatage de la date:', error)
+      // En cas d'erreur, on essaie d'extraire juste la partie date
+      const parts = u.birth_date.split('T')
+      if (parts.length > 0 && parts[0]) {
+        birthDateStr = parts[0]
+      }
+    }
+  }
+
+  // Log spécifique pour voir la valeur de la seed d'avatar
+  console.log('Avatar seed dans les données utilisateur:', u.avatar_seed);
+  
   form.value = {
     firstName: u.first_name,
     lastName : u.last_name,
     email    : u.email,
-    birthDate: u.birth_date.split(' ')[0], // Récupérer juste la date sans l'heure
-    grade    : u.id_grade,
-    club     : u.id_club,
+    birthDate: birthDateStr, // Date sans l'heure, avec valeur par défaut
+    grade    : u.id_grade || 1,
+    club     : u.id_club || 1,
     gender   : u.id_gender,
     weight   : u.weight,
     phone    : u.phone || '',
@@ -300,11 +422,55 @@ onMounted(() => {
     avatarSeed     : u.avatar_seed || 'default'
   }
   
+  // Mise à jour de currentSeed avec la valeur de l'avatar de l'utilisateur
   currentSeed.value = u.avatar_seed || 'default'
+  console.log('Valeur de currentSeed après remplissage:', currentSeed.value);
+  
+  return true
+}
+
+/* -------------------- init ----------------------------------------- */
+onMounted(async () => {
+  console.log('PageEditProfile - onMounted');
+  
+  // Charger les listes de grades et clubs depuis l'API
+  await Promise.all([fetchGrades(), fetchClubs()])
+  
+  // Remplir le formulaire si l'utilisateur est déjà chargé
+  if (store.user) {
+    console.log('Utilisateur déjà dans le store:', store.user);
+    fillFormWithUserData()
+  } else {
+    // Sinon recharger la session utilisateur puis remplir le formulaire
+    console.log('Aucun utilisateur dans le store, chargement de la session');
+    try {
+      await store.fetchSession()
+      console.log('Session récupérée:', store.user);
+      fillFormWithUserData()
+    } catch (error) {
+      console.error('Erreur lors du chargement de la session:', error)
+      $q.notify({
+        color: 'negative',
+        message: 'Erreur lors du chargement de votre profil, veuillez vous reconnecter'
+      })
+      router.push('/login')
+    }
+  }
+  
   refreshSeeds()
 })
 
+// Surveiller les changements dans le store.user pour mettre à jour le formulaire
+watch(() => store.user, (newUser) => {
+  console.log('Watch: store.user a changé', newUser);
+  if (newUser) {
+    fillFormWithUserData()
+  }
+}, { deep: true })
+
 /* -------------------- submit --------------------------------------- */
+/* Correction pour la méthode onSubmit dans ProfileEditPage.vue */
+
 const onSubmit = async () => {
   // Vérification pour le changement de mot de passe
   if (form.value.newPassword) {
@@ -324,7 +490,10 @@ const onSubmit = async () => {
     }
   }
   
+  loading.value.submit = true
   try {
+    console.log('Début de la mise à jour du profil');
+    
     // Préparer les données à envoyer au serveur
     const payload = {
       first_name: form.value.firstName,
@@ -332,48 +501,78 @@ const onSubmit = async () => {
       email: form.value.email,
       birth_date: `${form.value.birthDate} 00:00:00`, // Ajouter l'heure pour DATETIME
       weight: form.value.weight,
-      phone: form.value.phone,
+      phone: form.value.phone || '',
       nationality: form.value.nationality,
-      id_gender: form.value.gender,
+      id_gender: form.value.gender, // S'assurer que cette valeur est correctement transmise
       id_grade: form.value.grade,
-      id_club: form.value.club
+      id_club: form.value.club,
+      avatar_seed: form.value.avatarSeed // Inclure la seed de l'avatar dans la même requête
     }
     
+    // Log détaillé pour voir ce qu'on envoie à l'API
+    console.log('Payload préparé pour la mise à jour:', JSON.stringify(payload, null, 2));
+    
     // Si changement de mot de passe, ajouter les champs correspondants
-    if (form.value.newPassword) {
+    if (form.value.newPassword && form.value.currentPassword) {
       Object.assign(payload, {
         password: form.value.newPassword,
         current_password: form.value.currentPassword
       })
+      console.log('Ajout des informations de changement de mot de passe');
     }
     
-    // Mettre à jour le profil
-    await axios.put(`/users/${store.user!.id}`, payload)
+    console.log('URL de mise à jour:', `${import.meta.env.VITE_API_URL}/users/${store.user!.id}`);
     
-    // Mettre à jour l'avatar si modifié
-    if (form.value.avatarSeed !== store.user!.avatar_seed) {
-      await axios.put(`/users/${store.user!.id}`, { avatar_seed: form.value.avatarSeed })
-    }
+    // Mettre à jour le profil (une seule requête pour tout, y compris l'avatar)
+    const response = await axios.put(`${import.meta.env.VITE_API_URL}/users/${store.user!.id}`, payload);
     
-    // Mettre à jour les données utilisateur dans le store
-    await store.fetchSession()
+    console.log('Réponse de la mise à jour:', response.data);
     
+    // === LA PARTIE IMPORTANTE - MISE À JOUR DU STORE APRÈS SUCCÈS ===
+    // Force un rechargement complet des données de session pour actualiser le store Pinia
+    await store.fetchSession();
+    
+    // Vérifier que le avatar_seed a bien été mis à jour dans le store
+    console.log('Nouvelle valeur de avatar_seed dans le store:', store.user?.avatar_seed);
+    
+    // Afficher la notification de succès
     $q.notify({ color: 'positive', message: 'Profil mis à jour avec succès' })
+    
+    // Redirection vers la page de profil
     router.push('/profile')
   } catch (error) {
     console.error('Erreur mise à jour profil:', error)
-    $q.notify({
-      color: 'negative',
-      message: error?.response?.data?.error || 'Erreur lors de la mise à jour du profil'
-    })
+    // Gestion spécifique des erreurs d'email déjà utilisé
+    const err = error as ApiError
+    
+    console.error('Détails de l\'erreur:', err.response?.data);
+    
+    // Vérifier si c'est une erreur d'email en double 
+    // (souvent ces erreurs ont un code HTTP 409 Conflict ou un message spécifique)
+    if (err.response?.status === 409 || 
+        (err.response?.data?.error && err.response.data.error.includes('email')) || 
+        (err.response?.data?.message && err.response.data.message.includes('email'))) {
+      $q.notify({
+        color: 'negative',
+        message: 'Cet email est déjà utilisé par un autre compte'
+      })
+    } else {
+      $q.notify({
+        color: 'negative',
+        message: err.response?.data?.error || err.response?.data?.message || 'Erreur lors de la mise à jour du profil'
+      })
+    }
+  } finally {
+    loading.value.submit = false
   }
 }
 
 /* -------------------- delete account ------------------------------- */
 const deleteAccount = async () => {
+  loading.value.delete = true
   try {
     // Appel API pour désactiver le compte (is_active = 0)
-    await axios.put(`/users/${store.user!.id}`, { is_active: false })
+    await axios.put(`${import.meta.env.VITE_API_URL}/users/${store.user!.id}`, { is_active: false })
     
     // Déconnexion
     await store.logout()
@@ -387,11 +586,14 @@ const deleteAccount = async () => {
     router.push('/')
   } catch (error) {
     console.error('Erreur suppression compte:', error)
+    const err = error as ApiError
     $q.notify({
       color: 'negative',
-      message: error?.response?.data?.error || 'Erreur lors de la suppression du compte'
+      message: err.response?.data?.error || err.response?.data?.message || 'Erreur lors de la suppression du compte'
     })
     showDeleteDialog.value = false
+  } finally {
+    loading.value.delete = false
   }
 }
 </script>

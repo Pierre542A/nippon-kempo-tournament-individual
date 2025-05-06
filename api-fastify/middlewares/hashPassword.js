@@ -15,15 +15,20 @@ async function hashPasswordMiddleware(req, reply) {
         });
       }
       
+      // Si changement de mot de passe avec confirmation, vérifier que les 2 mots de passe correspondent
+      if (req.body.confirm_password && plainPassword !== req.body.confirm_password) {
+        return reply.code(400).send({ 
+          error: 'Les mots de passe ne correspondent pas' 
+        });
+      }
+      
       // Si le mot de passe n'est pas déjà hashé (ne commence pas par $2a$), le hasher
       if (!plainPassword.startsWith('$2a$')) {
         const saltRounds = 12;
         const hashedPassword = await bcrypt.hash(plainPassword, saltRounds);
         
         // Mettre à jour le mot de passe dans le corps de la requête
-        if (req.body.password) req.body.password = hashedPassword;
-        if (req.body.user_password) req.body.user_password = hashedPassword;
-        if (!req.body.user_password) req.body.user_password = hashedPassword;
+        req.body.password = hashedPassword;
       }
     }
   } catch (error) {

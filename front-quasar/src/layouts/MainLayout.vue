@@ -102,11 +102,54 @@
                       <q-icon :name="isPwd ? 'visibility_off' : 'visibility'" class="cursor-pointer" @click="isPwd = !isPwd" />
                     </template>
                   </q-input>
+                  
+                  <!-- Ajout du lien "Mot de passe oublié" -->
+                  <div class="text-right q-mt-sm">
+                    <q-btn flat dense size="sm" label="Mot de passe oublié ?" class="text-primary" @click="showForgotPasswordDialog = true; showLoginDialog = false" />
+                  </div>
                 </q-card-section>
 
                 <q-card-actions align="right" class="text-primary">
                   <q-btn label="Annuler" flat color="primary" v-close-popup :disable="store.loading" />
                   <q-btn label="Se connecter" color="primary" type="submit" :loading="store.loading">
+                    <template #loading><q-spinner-facebook /></template>
+                  </q-btn>
+                </q-card-actions>
+              </q-form>
+            </q-card>
+          </q-dialog>
+          
+          <!-- Forgot Password Dialog -->
+          <q-dialog v-model="showForgotPasswordDialog" transition-show="scale" transition-hide="scale">
+            <q-card style="min-width:300px;max-width:400px;width:100%">
+              <q-card-section class="row items-center q-pb-none">
+                <div class="text-h6">Réinitialisation du mot de passe</div>
+                <q-space />
+                <q-btn icon="close" flat round dense v-close-popup :disable="forgotPasswordLoading" />
+              </q-card-section>
+
+              <q-form @submit.prevent="handleForgotPassword">
+                <q-card-section class="q-pt-md">
+                  <p class="text-body2">Entrez votre adresse email pour recevoir un lien de réinitialisation de mot de passe.</p>
+                  <q-input 
+                    v-model="forgotPasswordForm.email" 
+                    label="Email" 
+                    type="email" 
+                    filled 
+                    class="q-mb-md" 
+                    lazy-rules 
+                    :disable="forgotPasswordLoading"
+                    :rules="[
+                      val => !!val || 'L\'adresse email est requise',
+                      val => validateEmail(val) || 'Format d\'email invalide'
+                    ]">
+                    <template #prepend><q-icon name="email" /></template>
+                  </q-input>
+                </q-card-section>
+
+                <q-card-actions align="right" class="text-primary">
+                  <q-btn flat label="Retour" color="primary" @click="showLoginDialog = true; showForgotPasswordDialog = false" :disable="forgotPasswordLoading" />
+                  <q-btn label="Envoyer le lien" color="primary" type="submit" :loading="forgotPasswordLoading">
                     <template #loading><q-spinner-facebook /></template>
                   </q-btn>
                 </q-card-actions>
@@ -160,6 +203,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useUserStore } from '../stores/user'
+import axios from 'axios'
 
 const route             = useRoute()
 const router            = useRouter()
@@ -167,10 +211,12 @@ const $q                = useQuasar()
 const store             = useUserStore()
 
 // ---- UI State ----
-const leftDrawerOpen   = ref(false)
-const showLoginDialog  = ref(false)
-const showSignupDialog = ref(false)
-const isPwd            = ref(true)
+const leftDrawerOpen          = ref(false)
+const showLoginDialog         = ref(false)
+const showSignupDialog        = ref(false)
+const showForgotPasswordDialog = ref(false)
+const isPwd                   = ref(true)
+const forgotPasswordLoading   = ref(false)
 
 // ---- Forms ----
 const signupForm = ref({
@@ -193,6 +239,7 @@ const signupForm = ref({
 })
 
 const loginForm = ref({ email: '', password: '' })
+const forgotPasswordForm = ref({ email: '' })
 
 // ---- Computed ----
 const currentTitle = computed(() => (route.meta.title as string) || 'Nippon Kempo Tournament')
@@ -204,6 +251,81 @@ function toggleLeftDrawer () {
   leftDrawerOpen.value = !leftDrawerOpen.value
 }
 
+interface ApiError {
+  response?: {
+    data?: {
+      error?: string;
+    };
+  };
+  message?: string;
+}
+
+// Fonction pour valider le numéro de téléphone (formatage simple)
+function validatePhone(phone: string): boolean {
+  // Si le champ est vide, on le considère valide (optionnel)
+  if (!phone || phone.trim() === '') return true;
+  
+  // Expression régulière pour valider les numéros français
+  // Format: +33612345678 ou 0612345678
+  const phoneRegex = /^(\+33|0)[1-9](\d{8})$/;
+  
+  return phoneRegex.test(phone.replace(/\s/g, ''));
+}
+
+// Fonction pour valider l'email
+function validateEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+interface ApiPasswordResetResponse {
+  success: boolean
+}
+
+async function handleForgotPassword() {
+  if (!forgotPasswordForm.value.email || !validateEmail(forgotPasswordForm.value.email)) {
+    $q.notify({ 
+      message: 'Veuillez entrer une adresse email valide', 
+      color: 'negative' 
+    });
+    return;
+  }
+  
+  forgotPasswordLoading.value = true;
+  
+  try {
+    // Appel à l'API pour demander une réinitialisation de mot de passe
+    const response = await axios.post<ApiPasswordResetResponse>(`${import.meta.env.VITE_API_URL}/request-password-reset`, { email: forgotPasswordForm.value.email })
+    
+    if (response.data.success) {
+      $q.notify({ 
+        message: 'Un email de réinitialisation a été envoyé à votre adresse si celle-ci est associée à un compte', 
+        color: 'positive',
+        timeout: 5000
+      });
+      showForgotPasswordDialog.value = false;
+      resetForgotPasswordForm();
+    } else {
+      $q.notify({ 
+        message: 'Une erreur est survenue. Veuillez réessayer plus tard.', 
+        color: 'negative' 
+      });
+    }
+  } catch (error) {
+    console.error('Erreur demande de réinitialisation:', error);
+    
+    // Pour des raisons de sécurité, on ne précise pas si l'email existe ou non
+    $q.notify({ 
+      message: 'Un email de réinitialisation a été envoyé à votre adresse si celle-ci est associée à un compte',
+      color: 'positive',
+      timeout: 5000
+    });
+  } finally {
+    forgotPasswordLoading.value = false;
+    showForgotPasswordDialog.value = false;
+  }
+}
+
 async function handleSignup () {
   if (signupForm.value.password !== signupForm.value.confirm_password) {
     $q.notify({ message: 'Mots de passe non identiques', color: 'negative' })
@@ -213,6 +335,15 @@ async function handleSignup () {
   // Vérifier que la date de naissance est renseignée
   if (!signupForm.value.birth_date) {
     $q.notify({ message: 'La date de naissance est obligatoire', color: 'negative' })
+    return
+  }
+
+  // Vérifier le format du numéro de téléphone
+  if (signupForm.value.phone && !validatePhone(signupForm.value.phone)) {
+    $q.notify({ 
+      message: 'Format de téléphone invalide. Utilisez le format +33612345678 ou 0612345678', 
+      color: 'negative' 
+    })
     return
   }
 
@@ -241,48 +372,79 @@ async function handleSignup () {
     const ok = await store.signup(payload)
     if (ok) {
       showSignupDialog.value = false
-      // Réinitialiser le formulaire
-      signupForm.value = {
-        first_name:        '',
-        last_name:         '',
-        email:             '',
-        password:          '',
-        confirm_password:  '',
-        birth_date:        '',
-        weight:            0,
-        phone:             '',
-        nationality:       'Française',
-        id_gender:         1,
-        id_grade:          1,
-        id_club:           1,
-        id_role:           3,
-        is_active:         true,
-        avatar_seed:       'default'
-      }
+      resetSignupForm()
       $q.notify({ message: 'Inscription réussie !', color: 'positive' })
     } else {
       $q.notify({ message: 'Erreur lors de l\'inscription', color: 'negative' })
     }
-  } catch (error) { // Capture l'erreur avec typage
+  } catch (error) {
     console.error('Erreur inscription:', error)
+    // Typage de l'erreur avec l'interface
+    const err = error as ApiError
     $q.notify({ 
-      message: 'Erreur lors de l\'inscription', 
+      message: err?.response?.data?.error || 'Erreur lors de l\'inscription', 
       color: 'negative' 
     })
   }
 }
 
-async function handleLogin () {
+async function handleLogin() {
   if (!loginForm.value.email || !loginForm.value.password) {
     $q.notify({ message: 'Veuillez remplir tous les champs', color: 'negative' })
     return
   }
-  const ok = await store.login(loginForm.value.email, loginForm.value.password)
-  if (ok) {
-    showLoginDialog.value = false
-    $q.notify({ message: 'Connexion réussie !', color: 'positive' })
-  } else {
-    $q.notify({ message: 'Email ou mot de passe incorrect', color: 'negative' })
+  
+  try {
+    const ok = await store.login(loginForm.value.email, loginForm.value.password)
+    if (ok) {
+      showLoginDialog.value = false
+      resetLoginForm()
+      $q.notify({ message: 'Connexion réussie !', color: 'positive' })
+    } else {
+      $q.notify({ message: 'Email ou mot de passe incorrect', color: 'negative' })
+    }
+  } catch (error) {
+    console.error('Erreur connexion:', error)
+    // Typage de l'erreur avec l'interface
+    const err = error as ApiError
+    $q.notify({ 
+      message: err?.response?.data?.error || 'Erreur lors de la connexion', 
+      color: 'negative' 
+    })
+  }
+}
+
+// Fonctions pour réinitialiser les formulaires
+function resetSignupForm() {
+  signupForm.value = {
+    first_name:        '',
+    last_name:         '',
+    email:             '',
+    password:          '',
+    confirm_password:  '',
+    birth_date:        '',
+    weight:            0,
+    phone:             '',
+    nationality:       'Française',
+    id_gender:         1,
+    id_grade:          1,
+    id_club:           1,
+    id_role:           3,
+    is_active:         true,
+    avatar_seed:       'default'
+  }
+}
+
+function resetLoginForm() {
+  loginForm.value = { 
+    email: '', 
+    password: '' 
+  }
+}
+
+function resetForgotPasswordForm() {
+  forgotPasswordForm.value = { 
+    email: '' 
   }
 }
 
