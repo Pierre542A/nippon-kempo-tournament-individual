@@ -42,6 +42,13 @@ const routes: RouteRecordRaw[] = [
           requiresAdmin: true
         }
       },
+      {
+        path: 'reset-password',
+        component: () => import('pages/ResetPasswordPage.vue'),
+        meta: {
+          title: 'Réinitialisation de mot de passe'
+        }
+      },
     ],
   },
   {

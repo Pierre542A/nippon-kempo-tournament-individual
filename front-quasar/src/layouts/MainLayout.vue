@@ -149,7 +149,7 @@
 
                 <q-card-actions align="right" class="text-primary">
                   <q-btn flat label="Retour" color="primary" @click="showLoginDialog = true; showForgotPasswordDialog = false" :disable="forgotPasswordLoading" />
-                  <q-btn label="Envoyer le lien" color="primary" type="submit" :loading="forgotPasswordLoading">
+                  <q-btn label="Envoyer le lien de récupération" color="primary" type="submit" :loading="forgotPasswordLoading">
                     <template #loading><q-spinner-facebook /></template>
                   </q-btn>
                 </q-card-actions>
@@ -278,8 +278,10 @@ function validateEmail(email: string): boolean {
   return emailRegex.test(email);
 }
 
-interface ApiPasswordResetResponse {
-  success: boolean
+interface PasswordResetResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
 }
 
 async function handleForgotPassword() {
@@ -294,8 +296,13 @@ async function handleForgotPassword() {
   forgotPasswordLoading.value = true;
   
   try {
-    // Appel à l'API pour demander une réinitialisation de mot de passe
-    const response = await axios.post<ApiPasswordResetResponse>(`${import.meta.env.VITE_API_URL}/request-password-reset`, { email: forgotPasswordForm.value.email })
+    // Typage de la réponse
+    const response = await axios.post<PasswordResetResponse>(
+      `${import.meta.env.VITE_API_URL}/request-password-reset`, 
+      {
+        email: forgotPasswordForm.value.email
+      }
+    );
     
     if (response.data.success) {
       $q.notify({ 
