@@ -79,8 +79,6 @@ En savoir plus : https://github.com/Orkhyd/CESI-Local-NK-Tournament
    # Assurez-vous que Docker est en cours d'exécution
    # Puis lancez le fichier start.bat (Windows)
    start.bat
-   
-   # Uniquement disponible pour Windows
    ```
 
 ## 📁 Structure du projet
