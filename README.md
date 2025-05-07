@@ -48,7 +48,7 @@ Ce projet est composé de deux parties complémentaires :
    ```
 
 2. **Configuration**
-   Créez un fichier `.env` à la racine du projet avec les variables suivantes :
+   Créez un premier fichier `.env` à la racine du projet avec les variables suivantes :
    ```
    MYSQL_HOST=mysql-bdd
    MYSQL_USER=user
@@ -59,8 +59,12 @@ Ce projet est composé de deux parties complémentaires :
    VITE_API_URL=http://localhost:3000
    MJ_APIKEY_PUBLIC=bcf15c6b66dc91b906cf73c904da0fdd
    MJ_APIKEY_PRIVATE=159499a6b3db43bc7d2fcaa41f57845b
-   RECAPTCHA_SECRET=null
    COOKIE_SECRET=a-secret-with-at-least-32-characters
+   ```
+      Créez un deuxième fichier `.env` à la racine du projet avec les variables suivantes :
+   ```
+   VITE_APP_MDP=motdepasse
+   VITE_REPLICACHE_LICENSE_KEY=l70ce33fc0dee46abb6f056086da4d87259499a6b3db43bc7d2fcaa41f57845b
    ```
 
 3. **Lancement**
@@ -75,21 +79,63 @@ Ce projet est composé de deux parties complémentaires :
 ## 📁 Structure du projet
 
 ```
-src/
-├── assets/            # Images, polices et autres ressources
-├── boot/              # Scripts d'initialisation Quasar
-├── components/        # Composants Vue réutilisables
-│   ├── tournaments/   # Composants liés aux tournois
-│   ├── users/         # Composants liés aux utilisateurs
-│   └── common/        # Composants communs (boutons, modals, etc.)
-├── css/               # Fichiers CSS/SCSS
-├── layouts/           # Mises en page de l'application
-├── pages/             # Pages de l'application
-├── router/            # Configuration des routes
-├── services/          # Services API et logique métier
-├── store/             # Magasins Pinia
-├── App.vue            # Composant racine
-└── app.d.ts           # Déclarations TypeScript
+nippon-kempo-tournament-individual/
+├── api-fastify/                   # API Backend avec Fastify
+│   ├── routes/                    # Définition des routes API
+│   ├── controllers/               # Contrôleurs pour la logique métier
+│   ├── services/                  # Services partagés
+│   ├── middleware/                # Middleware d'authentification
+│   ├── Dockerfile                 # Configuration Docker pour l'API
+│   ├── package.json               # Dépendances de l'API
+│   └── server.js                  # Point d'entrée de l'API
+│
+├── bdd-mysql2/                    # Base de données MySQL
+│   ├── table_categories.sql       # Structure table des catégories
+│   ├── table_categorytypes.sql    # Structure table des types de catégories
+│   ├── table_clubs.sql            # Structure table des clubs
+│   ├── table_genders.sql          # Structure table des genres
+│   ├── table_grades.sql           # Structure table des grades
+│   ├── table_matchs.sql           # Structure table des matchs
+│   ├── table_participant.sql      # Structure table des participants
+│   ├── table_roles.sql            # Structure table des rôles utilisateurs
+│   ├── table_tournaments.sql      # Structure table des tournois
+│   └── ykeys_foreign.sql          # Clés étrangères et contraintes
+│
+├── back-individuel/               # Application Electron (back-office)
+│   ├── electron/                  # Configuration Electron
+│   ├── src/                       # Code source
+│   ├── public/                    # Ressources statiques
+│   ├── .env                       # Variables d'environnement spécifiques n°2
+│   └── [autres fichiers]          # Autres fichiers du back-office
+│
+├── front-quasar/                  # Frontend avec Quasar/Vue.js
+│   ├── src/
+│   │   ├── assets/                # Images, polices et autres ressources
+│   │   ├── boot/                  # Scripts d'initialisation Quasar
+│   │   ├── css/                   # Fichiers CSS/SCSS
+│   │   ├── layouts/               # Mises en page de l'application
+│   │   ├── pages/                 # Pages de l'application
+│   │   ├── router/                # Configuration des routes
+│   │   ├── store/                 # Magasins Pinia
+│   │   ├── App.vue                # Composant racine
+│   │   └── app.d.ts               # Déclarations TypeScript
+│   │
+│   ├── public/                    # Fichiers statiques
+│   └── quasar.conf.js             # Configuration Quasar
+│
+├── .editorconfig                  # Configuration de l'éditeur
+├── .gitattributes                 # Attributs Git
+├── .gitignore                     # Fichiers ignorés par Git
+├── .prettierrc.json               # Configuration Prettier
+├── README.md                      # Documentation du projet
+├── eslint.config.js               # Configuration ESLint
+├── index.html                     # Page HTML principale
+├── jsconfig.json                  # Configuration JavaScript
+├── package-lock.json              # Verrouillage des versions de dépendances
+├── package-lock.json.new.json     # Nouveau verrouillage des dépendances
+├── package.json                   # Dépendances du projet
+├── .env                           # Variables d'environnement générales n°1
+└── start.bat                      # Script de démarrage pour Windows
 ```
 
 ## 👥 Rôles utilisateurs
