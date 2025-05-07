@@ -36,6 +36,7 @@ En savoir plus : https://github.com/Orkhyd/CESI-Local-NK-Tournament
 ### Back-office
 - **Framework** : Electron avec vue3
 - **State Management** : Pinia
+- **Synchronisation** : Replicache
 - **Authentication** : JWT (JSON Web Tokens)
 
 ## 🚀 Installation
@@ -67,13 +68,13 @@ En savoir plus : https://github.com/Orkhyd/CESI-Local-NK-Tournament
    MJ_APIKEY_PRIVATE=159499a6b3db43bc7d2fcaa41f57845b
    COOKIE_SECRET=a-secret-with-at-least-32-characters
    ```
-      Créez un deuxième fichier `.env` à la racine du projet avec les variables suivantes :
+3. Créez un deuxième fichier `.env` à la racine du projet avec les variables suivantes :
    ```
    VITE_APP_MDP=motdepasse
    VITE_REPLICACHE_LICENSE_KEY=l70ce33fc0dee46abb6f056086da4d87259499a6b3db43bc7d2fcaa41f57845b
    ```
 
-3. **Lancement**
+4. **Lancement**
    ```bash
    # Assurez-vous que Docker est en cours d'exécution
    # Puis lancez le fichier start.bat (Windows)
