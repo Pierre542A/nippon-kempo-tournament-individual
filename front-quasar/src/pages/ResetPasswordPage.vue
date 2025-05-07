@@ -1,27 +1,37 @@
 <template>
-    <q-page class="flex flex-center">
-      <div class="row justify-center items-start q-pa-md">
-        <div class="col-12 col-sm-8 col-md-6 col-lg-4">
-          <!-- Card principale -->
-          <q-card class="shadow-3 rounded-borders">
-            <q-card-section class="bg-primary text-white">
-              <div class="text-h5">Réinitialisation de mot de passe</div>
+  <q-page class="flex flex-center">
+    <div class="row justify-center items-start q-pa-md">
+      <div class="col-12 col-sm-8 col-md-6 col-lg-4">
+        <!-- Card principale -->
+        <q-card class="shadow-3 rounded-borders">
+          <q-card-section class="bg-primary text-white">
+            <div class="text-h5">Réinitialisation de mot de passe</div>
+          </q-card-section>
+
+          <!-- Message d'erreur dans une bannière élégante -->
+          <div v-if="tokenError">
+            <q-card-section class="bg-negative text-white q-pb-md">
+              <div class="text-subtitle1 q-mb-sm">
+                <q-icon name="error" size="sm" class="q-mr-xs" />
+                Une erreur est survenue
+              </div>
+              <p class="q-mb-md">{{ tokenError }}</p>
+              <div class="row q-gutter-sm">
+                <q-btn 
+                  color="white" 
+                  outline
+                  label="Demander un nouveau lien" 
+                  @click="requestNewLink" 
+                />
+                <q-btn 
+                  color="white" 
+                  outline
+                  label="Retour à l'accueil" 
+                  to="/" 
+                />
+              </div>
             </q-card-section>
-  
-            <!-- Message d'erreur dans une bannière élégante -->
-            <div v-if="tokenError">
-              <q-card-section class="bg-negative text-white q-pb-md">
-                <div class="text-subtitle1 q-mb-sm">
-                  <q-icon name="error" size="sm" class="q-mr-xs" />
-                  Une erreur est survenue
-                </div>
-                <p class="q-mb-md">{{ tokenError }}</p>
-                <q-btn color="white" text-color="negative" label="Demander un nouveau lien" 
-                      @click="requestNewLink" flat class="q-mr-sm" />
-                <q-btn color="white" text-color="negative" label="Retour à l'accueil" 
-                      to="/" flat />
-              </q-card-section>
-            </div>
+          </div>
   
             <!-- Formulaire de réinitialisation -->
             <div v-else>

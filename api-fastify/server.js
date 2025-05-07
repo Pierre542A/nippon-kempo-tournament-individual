@@ -8,6 +8,7 @@ const UserService = require("./services/userService");
 const TournamentService = require("./services/TournamentService");
 const PasswordResetService = require("./services/PasswordResetService");
 const PasswordResetController = require("./controllers/PasswordResetController");
+const MatchService = require('./services/MatchService');
 
 // Importation des routes
 const rateLimit = require("./middlewares/rateLimit");
@@ -84,6 +85,8 @@ const start = async () => {
     
     const passwordResetControllerInstance = new PasswordResetController(fastify);
     fastify.decorate("passwordResetController", passwordResetControllerInstance);
+
+    fastify.decorate('matchService', new MatchService(fastify));
 
     // Initialisation de la connexion pour le service de réinitialisation
     try {

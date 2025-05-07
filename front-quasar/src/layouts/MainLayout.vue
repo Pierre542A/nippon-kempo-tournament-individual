@@ -177,6 +177,19 @@
           </q-item-section>
         </q-item>
 
+        <!-- Nouveau : Section pour les gestionnaires -->
+        <template v-if="isConnected && isManager">
+          <q-separator />
+          <q-item-label header>Gestionnaire</q-item-label>
+          <q-item to="/manager" clickable v-ripple>
+            <q-item-section avatar><q-icon name="business" /></q-item-section>
+            <q-item-section>
+              <q-item-label>Espace Gestionnaire</q-item-label>
+              <q-item-label caption>Gérez votre club, ses tournois et ses membres</q-item-label>
+            </q-item-section>
+          </q-item>
+        </template>
+
         <template v-if="isConnected && isAdmin">
           <q-separator />
           <q-item-label header>Administration</q-item-label>
@@ -245,6 +258,7 @@ const forgotPasswordForm = ref({ email: '' })
 const currentTitle = computed(() => (route.meta.title as string) || 'Nippon Kempo Tournament')
 const isConnected  = computed(() => store.connected)
 const isAdmin      = computed(() => store.isAdmin)
+const isManager    = computed(() => store.isManager)
 
 // ---- Methods ----
 function toggleLeftDrawer () {
@@ -333,7 +347,8 @@ async function handleForgotPassword() {
   }
 }
 
-async function handleSignup () {
+async function handleSignup() {
+  // Vérification des mots de passe
   if (signupForm.value.password !== signupForm.value.confirm_password) {
     $q.notify({ message: 'Mots de passe non identiques', color: 'negative' })
     return
@@ -342,6 +357,35 @@ async function handleSignup () {
   // Vérifier que la date de naissance est renseignée
   if (!signupForm.value.birth_date) {
     $q.notify({ message: 'La date de naissance est obligatoire', color: 'negative' })
+    return
+  }
+  
+  // Vérification de l'âge
+  const birthDate = new Date(signupForm.value.birth_date);
+  if (isNaN(birthDate.getTime())) {
+    $q.notify({ message: 'Format de date de naissance invalide', color: 'negative' })
+    return
+  }
+  
+  // Vérifier que la date n'est pas dans le futur
+  if (birthDate > new Date()) {
+    $q.notify({ message: 'La date de naissance ne peut pas être dans le futur', color: 'negative' })
+    return
+  }
+  
+  // Vérifier l'âge minimum (par exemple 10 ans)
+  const minAgeDate = new Date();
+  minAgeDate.setFullYear(minAgeDate.getFullYear() - 10);
+  if (birthDate > minAgeDate) {
+    $q.notify({ message: 'L\'âge minimum est de 10 ans', color: 'negative' })
+    return
+  }
+  
+  // Vérifier l'âge maximum (par exemple 120 ans)
+  const maxAgeDate = new Date();
+  maxAgeDate.setFullYear(maxAgeDate.getFullYear() - 120);
+  if (birthDate < maxAgeDate) {
+    $q.notify({ message: 'L\'âge maximum est de 120 ans', color: 'negative' })
     return
   }
 
@@ -354,15 +398,15 @@ async function handleSignup () {
     return
   }
 
-  // Formater la date correctement pour la base de données
-  const formattedDate = `${signupForm.value.birth_date} 00:00:00`
+  // Le reste de la fonction reste inchangé
+  const formattedDate = signupForm.value.birth_date;
 
   const payload = {
     first_name:    signupForm.value.first_name.trim(),
     last_name:     signupForm.value.last_name.trim(),
     email:         signupForm.value.email.trim().toLowerCase(),
     password:      signupForm.value.password,
-    birth_date:    formattedDate, // Date au format DATETIME
+    birth_date:    formattedDate, // Juste la date sans heure
     weight:        Number(signupForm.value.weight),
     phone:         signupForm.value.phone.trim() || '',
     nationality:   signupForm.value.nationality,
@@ -381,6 +425,8 @@ async function handleSignup () {
       showSignupDialog.value = false
       resetSignupForm()
       $q.notify({ message: 'Inscription réussie !', color: 'positive' })
+      // Redirection vers la page d'accueil après inscription
+      router.push('/')
     } else {
       $q.notify({ message: 'Erreur lors de l\'inscription', color: 'negative' })
     }
@@ -407,6 +453,8 @@ async function handleLogin() {
       showLoginDialog.value = false
       resetLoginForm()
       $q.notify({ message: 'Connexion réussie !', color: 'positive' })
+      // Redirection vers la page d'accueil après connexion
+      router.push('/')
     } else {
       $q.notify({ message: 'Email ou mot de passe incorrect', color: 'negative' })
     }
@@ -457,8 +505,12 @@ function resetForgotPasswordForm() {
 
 async function logout () {
   await store.logout()
-  if (route.path.startsWith('/profile') || route.path.startsWith('/admin')) router.push('/')
-  $q.notify({ message: 'Déconnexion réussie', color: 'positive' })
+  if (route.path.startsWith('/profile') || 
+      route.path.startsWith('/admin') || 
+      route.path.startsWith('/manager')) {
+    router.push('/')
+  }
+  $q.notify({ message: 'Déconnexion réussie', color: 'info' })
 }
 
 onMounted(() => {

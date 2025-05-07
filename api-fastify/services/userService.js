@@ -4,6 +4,16 @@ class UserService {
     this.mysql = fastify.mysql;
   }
 
+  // Fonction utilitaire pour formater les dates
+  formatDateOnly(dateString) {
+    if (!dateString) return null;
+    // Si la date contient une partie heure, la supprimer
+    if (dateString.includes(' ') || dateString.includes('T')) {
+      return dateString.split(/[ T]/)[0]; // Divise avec espace ou T (format ISO)
+    }
+    return dateString;
+  }
+
   async getUserByEmail(email) {
     try {
       const [rows] = await this.mysql.execute(
@@ -128,6 +138,9 @@ class UserService {
       if (!password) {
         throw new Error("Le mot de passe est obligatoire");
       }
+      
+      // Formater la date de naissance pour n'avoir que la date (sans heure)
+      const formattedBirthDate = this.formatDateOnly(userData.birth_date);
   
       const [result] = await this.mysql.execute(
         `INSERT INTO users
@@ -138,7 +151,7 @@ class UserService {
           userData.last_name,
           userData.email,
           password,
-          userData.birth_date,
+          formattedBirthDate,
           userData.weight,
           userData.phone || '',
           userData.nationality,
@@ -229,6 +242,11 @@ class UserService {
       
       if (userExists.length === 0) {
         throw new Error("Utilisateur non trouvé");
+      }
+      
+      // Formater la date de naissance (si présente) pour n'avoir que la date (sans heure)
+      if (updateData.birth_date) {
+        updateData.birth_date = this.formatDateOnly(updateData.birth_date);
       }
       
       // Validation de l'email
@@ -352,8 +370,6 @@ class UserService {
     }
   }
   
-  //jusqu'a la c'est ok
-
   async confirmUserEmail(user_id) {
     try {
       const [result] = await this.mysql.execute(

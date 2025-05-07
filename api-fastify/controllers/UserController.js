@@ -162,6 +162,12 @@ class UserController {
         });
       }
 
+      // Formater la date de naissance pour n'avoir que la date (sans heure)
+      if (userData.birth_date) {
+        // Si la date contient une heure, la supprimer
+        userData.birth_date = userData.birth_date.split(' ')[0];
+      }
+
       // Crée l'utilisateur avec le mdp déjà hashé par le middleware
       try {
         const newUser = await this.userService.createUser(userData);
@@ -242,20 +248,20 @@ class UserController {
     try {
       const userId = req.params.id;
       const updateData = req.body;
-  
+
       console.log('Données reçues pour mise à jour du profil :', JSON.stringify(updateData, null, 2));
-  
+
       // Vérifier que l'utilisateur est admin ou agit sur son propre compte
       if (userId != req.user.id && req.user.role !== 1) {
         return reply.code(403).send({ error: "Non autorisé" });
       }
-  
+
       // Vérifier si l'utilisateur existe
       const user = await this.userService.getUserById(userId);
       if (!user) {
         return reply.code(404).send({ error: "Utilisateur non trouvé" });
       }
-  
+
       // Vérification du mot de passe si modification demandée
       if (updateData.password && updateData.current_password) {
         const isPasswordValid = await bcrypt.compare(updateData.current_password, user.password);
@@ -264,22 +270,28 @@ class UserController {
         }
         // Le mot de passe actuel est correct, on peut continuer
         console.log('Mot de passe vérifié avec succès');
-        
+
         // Hasher le nouveau mot de passe
         const saltRounds = 12;
         updateData.password = await bcrypt.hash(updateData.password, saltRounds);
-        
+
         // Supprimer le mot de passe actuel des données à mettre à jour
         delete updateData.current_password;
         delete updateData.confirmPassword;
       }
-  
+
+      // Formater la date de naissance (si présente) pour n'avoir que la date (sans heure)
+      if (updateData.birth_date) {
+        // Si la date contient une heure, la supprimer
+        updateData.birth_date = updateData.birth_date.split(' ')[0];
+      }
+
       try {
         // Effectuer la mise à jour
         const result = await this.userService.updateUserInfo(userId, updateData);
-  
+
         console.log('Résultat mise à jour profil :', result);
-  
+
         return reply.send({
           success: true,
           message: "Information utilisateur mise à jour avec succès"
@@ -287,11 +299,11 @@ class UserController {
       } catch (updateError) {
         // Log de l'erreur pour debug
         console.error('Erreur spécifique updateUserInfo:', updateError);
-        
+
         if (updateError.message.includes('email est déjà utilisée')) {
           return reply.code(409).send({ error: updateError.message });
         }
-        
+
         throw updateError;
       }
     } catch (error) {
@@ -299,6 +311,33 @@ class UserController {
       return reply.code(500).send({
         error: error.message || "Erreur interne serveur"
       });
+    }
+  }
+
+  // Ajouter dans la classe UserController
+  async getUserMatches(req, reply) {
+    try {
+      const userId = req.params.id;
+
+      // Vérifier que l'utilisateur est admin ou agit sur son propre compte
+      if (userId != req.user.id && req.user.role !== 1) {
+        return reply.code(403).send({ error: "Non autorisé" });
+      }
+
+      // Vérifier si l'utilisateur existe
+      const user = await this.userService.getUserById(userId);
+      if (!user) {
+        return reply.code(404).send({ error: "Utilisateur non trouvé" });
+      }
+
+      // Utiliser le service de matches pour récupérer les données
+      const matchService = this.fastify.matchService;
+      const matches = await matchService.getMatchesByUserId(userId);
+
+      return reply.send(matches);
+    } catch (error) {
+      console.error('Erreur getUserMatches:', error);
+      return reply.code(500).send({ error: "Erreur interne serveur" });
     }
   }
 

@@ -43,6 +43,15 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'manager',
+        component: () => import('pages/ManagerPage.vue'),
+        meta: {
+          title: 'Espace Gestionnaire',
+          requiresAuth: true,
+          requiresManager: true
+        }
+      },
+      {
         path: 'reset-password',
         component: () => import('pages/ResetPasswordPage.vue'),
         meta: {

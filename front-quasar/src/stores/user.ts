@@ -11,7 +11,7 @@ export interface User {
     avatar_seed: string          // ← toujours NON NULL en BDD
     first_name: string
     last_name: string
-    birth_date: string
+    birth_date: string           // Date uniquement (sans heure)
     email: string
     phone: string | null
     weight: number
@@ -39,6 +39,23 @@ export interface Stats {
 
 /* -------------------------------------------------------------------- */
 axios.defaults.withCredentials = true   // cookies cross-origin
+
+// Fonction pour formater les dates (ne garder que la partie date)
+function formatDateOnly(dateString: string | null | undefined): string | null {
+    if (!dateString) return null;
+    
+    try {
+        // Si la date contient une partie heure, la supprimer
+        if (dateString.includes(' ') || dateString.includes('T')) {
+            const parts = dateString.split(/[ T]/);
+            return parts[0] || null; // Retourne la première partie ou null si vide
+        }
+        return dateString;
+    } catch (error) {
+        console.error('Erreur lors du formatage de la date:', error);
+        return dateString; // En cas d'erreur, retourner la chaîne originale
+    }
+}
 
 export const useUserStore = defineStore('user', () => {
     /* ------------------------------ state ------------------------------ */
@@ -105,6 +122,11 @@ export const useUserStore = defineStore('user', () => {
                 console.log("Avatar seed reçu du backend:", data.user.avatar_seed);
             }
 
+            // Assurer que la date de naissance est au format correct (juste la date sans heure)
+            if (data.user && data.user.birth_date) {
+                data.user.birth_date = formatDateOnly(data.user.birth_date) || data.user.birth_date;
+            }
+
             // Mise à jour des données du store
             user.value = data.user
             stats.value = data.stats
@@ -138,6 +160,11 @@ export const useUserStore = defineStore('user', () => {
     }) {
         loading.value = true
         try {
+            // S'assurer que la date de naissance est au format correct avant l'envoi
+            if (payload.birth_date) {
+                payload.birth_date = formatDateOnly(payload.birth_date) || payload.birth_date;
+            }
+            
             await axios.post(`${import.meta.env.VITE_API_URL}/signup`, payload)
             await fetchSession()
             return true

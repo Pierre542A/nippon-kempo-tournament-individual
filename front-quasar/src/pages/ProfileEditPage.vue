@@ -56,17 +56,12 @@
                 </div>
                 <div class="col-12 col-sm-6">
                   <q-input v-model.number="form.weight" type="number" label="Poids (kg)"
-                           filled :rules="[
-                             v => !!v || 'Le poids est requis',
-                             v => v > 0 || 'Le poids doit être supérieur à 0',
-                             v => v <= 250 || 'Le poids doit être inférieur à 250kg'
-                           ]" />
+                           filled />
                 </div>
                 <div class="col-12 col-sm-6">
                   <q-select v-model="form.grade" :options="gradeOptions"
                             option-value="id" option-label="name"
                             label="Grade" filled emit-value map-options
-                            :rules="[v => !!v || 'Le grade est requis']" 
                             :loading="loading.grades" />
                 </div>
                 <div class="col-12 col-sm-6">
@@ -78,7 +73,6 @@
                   <q-select v-model="form.club" :options="clubOptions"
                             option-value="id" option-label="name"
                             label="Club" filled emit-value map-options
-                            :rules="[v => !!v || 'Le club est requis']" 
                             :loading="loading.clubs" />
                 </div>
                 <div class="col-12">
@@ -278,7 +272,7 @@ interface FormData {
   firstName: string; lastName: string; email: string; birthDate: string
   grade: number | null; club: number | null; currentPassword: string; gender: number
   newPassword: string; confirmPassword: string; avatarSeed: string
-  weight: number; phone: string; nationality: string
+  weight: number | null; phone: string; nationality: string
 }
 
 // Options pour les champs select avec id et nom 
@@ -292,9 +286,9 @@ const genderOptions = [
 
 const form = ref<FormData>({
   firstName: '', lastName: '', email: '', birthDate: '',
-  grade: 1, club: 1, currentPassword: '', gender: 1,
+  grade: null, club: null, currentPassword: '', gender: 1,
   newPassword: '', confirmPassword: '', avatarSeed: '',
-  weight: 0, phone: '', nationality: 'Française'
+  weight: null, phone: '', nationality: 'Française'
 })
 
 const validatePasswordMatch = () => {
@@ -395,9 +389,11 @@ const fillFormWithUserData = () => {
     } catch (error) {
       console.error('Erreur lors du formatage de la date:', error)
       // En cas d'erreur, on essaie d'extraire juste la partie date
-      const parts = u.birth_date.split('T')
-      if (parts.length > 0 && parts[0]) {
-        birthDateStr = parts[0]
+      if (typeof u.birth_date === 'string') {
+        const parts = u.birth_date.split('T')
+        if (parts.length > 0 && parts[0]) {
+          birthDateStr = parts[0]
+        }
       }
     }
   }
@@ -410,10 +406,10 @@ const fillFormWithUserData = () => {
     lastName : u.last_name,
     email    : u.email,
     birthDate: birthDateStr, // Date sans l'heure, avec valeur par défaut
-    grade    : u.id_grade || 1,
-    club     : u.id_club || 1,
+    grade    : u.id_grade, // Conserver la valeur null si elle est absente
+    club     : u.id_club,  // Conserver la valeur null si elle est absente
     gender   : u.id_gender,
-    weight   : u.weight,
+    weight   : u.weight || null, // Poids peut être null
     phone    : u.phone || '',
     nationality: u.nationality,
     currentPassword: '',
@@ -469,8 +465,6 @@ watch(() => store.user, (newUser) => {
 }, { deep: true })
 
 /* -------------------- submit --------------------------------------- */
-/* Correction pour la méthode onSubmit dans ProfileEditPage.vue */
-
 const onSubmit = async () => {
   // Vérification pour le changement de mot de passe
   if (form.value.newPassword) {
@@ -495,18 +489,31 @@ const onSubmit = async () => {
     console.log('Début de la mise à jour du profil');
     
     // Préparer les données à envoyer au serveur
-    const payload = {
+    const payload: Record<string, string | number | boolean | null> = {
       first_name: form.value.firstName,
       last_name: form.value.lastName,
       email: form.value.email,
-      birth_date: `${form.value.birthDate} 00:00:00`, // Ajouter l'heure pour DATETIME
-      weight: form.value.weight,
-      phone: form.value.phone || '',
+      birth_date: form.value.birthDate, // Juste la date sans l'heure
       nationality: form.value.nationality,
       id_gender: form.value.gender, // S'assurer que cette valeur est correctement transmise
-      id_grade: form.value.grade,
-      id_club: form.value.club,
       avatar_seed: form.value.avatarSeed // Inclure la seed de l'avatar dans la même requête
+    }
+    
+    // Ajouter les champs optionnels seulement s'ils ont une valeur
+    if (form.value.phone) {
+      payload.phone = form.value.phone;
+    }
+    
+    if (form.value.weight !== null) {
+      payload.weight = form.value.weight;
+    }
+    
+    if (form.value.grade !== null) {
+      payload.id_grade = form.value.grade;
+    }
+    
+    if (form.value.club !== null) {
+      payload.id_club = form.value.club;
     }
     
     // Log détaillé pour voir ce qu'on envoie à l'API
@@ -528,7 +535,6 @@ const onSubmit = async () => {
     
     console.log('Réponse de la mise à jour:', response.data);
     
-    // === LA PARTIE IMPORTANTE - MISE À JOUR DU STORE APRÈS SUCCÈS ===
     // Force un rechargement complet des données de session pour actualiser le store Pinia
     await store.fetchSession();
     
