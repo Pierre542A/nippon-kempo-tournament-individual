@@ -8,7 +8,7 @@ Ce projet est composé de deux parties complémentaires :
 
 1. **Site Web Public** : Interface permettant aux utilisateurs de consulter le calendrier des événements, de s'inscrire aux compétitions et de suivre leurs résultats en ligne.
 
-2. **Back Office Collaboratif (version individuelle)** : Application de gestion interne avec des fonctionnalités supplémentaires par rapport au projet collaboratif, incluant un système de connexion et un gestionnaire de club. En savoir plus : [URL_DU_REPO]
+2. **Back Office Collaboratif (version individuelle)** : Application de gestion interne avec des fonctionnalités supplémentaires par rapport au projet collaboratif, incluant un système de connexion et un gestionnaire de club. En savoir plus : https://github.com/Orkhyd/CESI-Local-NK-Tournament
 
 ## ✨ Fonctionnalités
 
