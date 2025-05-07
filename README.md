@@ -32,6 +32,11 @@ Ce projet est composé de deux parties complémentaires :
 - **Authentication** : JWT (JSON Web Tokens)
 - **Mailing** : Mailjet avec API et email professionnel (certificats et protection anti-spam)
 
+### Back-office
+- **Framework** : Electron avec vue3
+- **State Management** : Pinia
+- **Authentication** : JWT (JSON Web Tokens)
+
 ## 🚀 Installation
 
 ### Prérequis
