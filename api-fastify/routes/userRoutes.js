@@ -21,7 +21,8 @@ module.exports = async function (fastify) {
   fastify.delete("/users/:id/tournament-registration", { preHandler: verifyAuth }, (req, reply) => userController.cancelTournamentRegistration(req, reply));
   fastify.put("/users/:id", { preHandler: verifyAuth }, (req, reply) => userController.updateUserInfo(req, reply));
   fastify.get("/users/:id/matches", { preHandler: verifyAuth }, (req, reply) => userController.getUserMatches(req, reply));
-  
+  fastify.get("/users/:id", { preHandler: verifyAuth }, (req, reply) => userController.getUserDetailsById(req, reply));
+
   // Routes tournois
   fastify.get("/tournaments", (req, reply) => tournamentController.getAllTournaments(req, reply));
   fastify.get("/tournaments/:id", (req, reply) => tournamentController.getTournamentById(req, reply));

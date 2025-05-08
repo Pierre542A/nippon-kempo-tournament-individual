@@ -118,6 +118,30 @@ class UserController {
     }
   }
 
+  async getUserDetailsById(req, reply) {
+    try {
+      const userId = req.params.id;
+
+      // Vérifiez si l'utilisateur est admin ou demande ses propres informations
+      if (userId != req.user.id && req.user.role !== 1) {
+        return reply.code(403).send({ error: "Non autorisé" });
+      }
+
+      const user = await this.userService.getUserById(userId);
+      if (!user) {
+        return reply.code(404).send({ error: "Utilisateur non trouvé" });
+      }
+
+      // Supprimer le mot de passe pour des raisons de sécurité
+      delete user.password;
+
+      return reply.send({ user });
+    } catch (error) {
+      console.error('Erreur getUserDetailsById:', error);
+      return reply.code(500).send({ error: "Erreur interne du serveur" });
+    }
+  }
+
   async getUserStats(req, reply) {
     try {
       const userId = req.params.id || req.user.id;

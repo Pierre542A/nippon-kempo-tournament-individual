@@ -49,26 +49,49 @@ fastify.decorate("jwtSecret", process.env.JWT_SECRET);
 // Ajout du middleware de rate limiting
 fastify.addHook("onRequest", rateLimit);
 
-// Configuration de la connexion à la base de données
-const setupDBConnection = () => {
-  const pool = mysql.createPool(dbConfig);
+// Configuration de la connexion à la base de données avec retry
+const setupDBConnection = async (maxRetries = 5, delay = 5000) => {
+  let attempts = 0;
   
-  pool.on('connection', () => {
-    fastify.log.info("New database connection established");
-  });
-
-  pool.on('error', (err) => {
-    fastify.log.error("Database connection error:", err);
-    setTimeout(() => setupDBConnection(), 3000);
-  });
-
-  return pool;
+  while (attempts < maxRetries) {
+    try {
+      fastify.log.info(`Tentative de connexion à la base de données (${attempts + 1}/${maxRetries})...`);
+      
+      const pool = mysql.createPool(dbConfig);
+      
+      // Test de connexion
+      await pool.query('SELECT 1');
+      
+      fastify.log.info("Connexion à la base de données établie avec succès");
+      
+      pool.on('connection', () => {
+        fastify.log.info("New database connection established");
+      });
+      
+      pool.on('error', (err) => {
+        fastify.log.error("Database connection error:", err);
+      });
+      
+      return pool;
+    } catch (err) {
+      attempts++;
+      fastify.log.error(`Erreur de connexion à la base de données: ${err.message}`);
+      
+      if (attempts >= maxRetries) {
+        fastify.log.error("Nombre maximum de tentatives atteint. Abandon.");
+        throw err;
+      }
+      
+      fastify.log.info(`Nouvelle tentative dans ${delay/1000} secondes...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
 };
 
 // Fonction de démarrage du serveur
 const start = async () => {
   try {
-    // Initialisation de la connexion à la base de données
+    // Initialisation de la connexion à la base de données avec retry
     const pool = await setupDBConnection();
     fastify.decorate("mysql", pool);
 
@@ -91,6 +114,7 @@ const start = async () => {
     // Initialisation de la connexion pour le service de réinitialisation
     try {
       await passwordResetServiceInstance.initialize();
+      console.log("Connexion à la base de données OK pour le service de réinitialisation de mot de passe");
       fastify.log.info("Service de réinitialisation de mot de passe initialisé avec succès");
     } catch (error) {
       fastify.log.error("Erreur lors de l'initialisation du service de réinitialisation:", error);
