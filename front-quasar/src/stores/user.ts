@@ -51,8 +51,7 @@ function formatDateOnly(dateString: string | null | undefined): string | null {
             return parts[0] || null; // Retourne la première partie ou null si vide
         }
         return dateString;
-    } catch (error) {
-        console.error('Erreur lors du formatage de la date:', error);
+    } catch {
         return dateString; // En cas d'erreur, retourner la chaîne originale
     }
 }
@@ -112,14 +111,10 @@ export const useUserStore = defineStore('user', () => {
                     params: { _t: new Date().getTime() }
                 }
             )
-            console.log("Données reçues de /me:", data)
 
             // S'assurer que l'objet User reçu contient bien la propriété avatar_seed
             if (data.user && !data.user.avatar_seed) {
-                console.warn("L'objet User reçu du backend ne contient pas de avatar_seed, utilisation de la valeur par défaut");
                 data.user.avatar_seed = 'default';
-            } else {
-                console.log("Avatar seed reçu du backend:", data.user.avatar_seed);
             }
 
             // Assurer que la date de naissance est au format correct (juste la date sans heure)
@@ -130,8 +125,7 @@ export const useUserStore = defineStore('user', () => {
             // Mise à jour des données du store
             user.value = data.user
             stats.value = data.stats
-        } catch (error) {
-            console.error("Erreur lors de la récupération des données de session:", error);
+        } catch {
             user.value = null
             stats.value = null
         } finally {

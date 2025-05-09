@@ -192,15 +192,23 @@
 
         <template v-if="isConnected && isAdmin">
           <q-separator />
-          <q-item-label header>Administration</q-item-label>
+          <q-item-label header>Espace administrateur</q-item-label>
           <q-item to="/admin" clickable v-ripple>
             <q-item-section avatar><q-icon name="admin_panel_settings" /></q-item-section>
             <q-item-section>
-              <q-item-label>Espace administrateur</q-item-label>
-              <q-item-label caption>Gérez les utilisateurs, modifiez leurs informations ou désactivez‑les.</q-item-label>
+              <q-item-label>Gérer les utilisateurs</q-item-label>
+              <q-item-label caption>Modifiez leurs informations ou désactivez‑les.</q-item-label>
             </q-item-section>
           </q-item>
-        </template>
+          <!-- Ajout du lien pour la création de club -->
+            <q-item to="/admin/create-club" clickable v-ripple>
+              <q-item-section avatar><q-icon name="add_business" /></q-item-section>
+              <q-item-section>
+                <q-item-label>Créer un club</q-item-label>
+                <q-item-label caption>Ajouter un nouveau club au système</q-item-label>
+              </q-item-section>
+            </q-item>
+          </template>
       </q-list>
     </q-drawer>
 

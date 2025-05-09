@@ -42,7 +42,7 @@ export default configure(() => {
     framework: {
       all: 'auto',
       config: {},
-      plugins: ['Notify'],
+      plugins: ['Notify', 'Dialog'],
     },
     animations: [],
     ssr: {

@@ -205,10 +205,10 @@
             </q-item>
 
             <!-- Ajout du poids de manière conditionnelle -->
-            <q-item v-if="selectedUser.weight">
+            <q-item>
               <q-item-section>
                 <q-item-label caption>Poids</q-item-label>
-                <q-item-label>{{ selectedUser.weight }} kg</q-item-label>
+                <q-item-label>{{ selectedUser.weight ? selectedUser.weight + " kg" : '—' }}</q-item-label>
               </q-item-section>
             </q-item>
 
@@ -223,7 +223,7 @@
             <q-item>
               <q-item-section>
                 <q-item-label caption>Club</q-item-label>
-                <q-item-label>{{ selectedUser.club_name || 'Non affilié' }}</q-item-label>
+                <q-item-label>{{ selectedUser.club_name || '—' }}</q-item-label>
               </q-item-section>
             </q-item>
 
@@ -231,7 +231,7 @@
             <q-item>
               <q-item-section>
                 <q-item-label caption>Grade</q-item-label>
-                <q-item-label>{{ selectedUser.grade_name || 'Non spécifié' }}</q-item-label>
+                <q-item-label>{{ selectedUser.grade_name || getGradeName(selectedUser.id_grade) || '—' }}</q-item-label>
               </q-item-section>
             </q-item>
 
@@ -312,7 +312,15 @@
                 </div>
                 <div class="col-12 col-md-6">
                   <q-select v-model="editUser.id_gender" :options="genderOptions" label="Genre *" outlined dense
-                    emit-value map-options />
+                    emit-value map-options menu-self="top middle" menu-anchor="bottom middle">
+                    <template v-slot:no-option>
+                      <q-item>
+                        <q-item-section class="text-grey">
+                          Aucun genre disponible
+                        </q-item-section>
+                      </q-item>
+                    </template>
+                  </q-select>
                 </div>
               </div>
             </div>
@@ -335,21 +343,44 @@
               <div class="row q-col-gutter-md q-mt-sm">
                 <div class="col-12 col-md-4">
                   <q-select v-model="editUser.id_role" :options="roleOptions" label="Rôle *" outlined dense emit-value
-                    map-options>
+                    map-options menu-self="top middle" menu-anchor="bottom middle">
                     <template v-slot:selected-item="{ opt }">
                       <q-badge :color="getRoleColor(opt.value)">
                         {{ opt.label }}
                       </q-badge>
                     </template>
+                    <template v-slot:no-option>
+                      <q-item>
+                        <q-item-section class="text-grey">
+                          Aucun rôle disponible
+                        </q-item-section>
+                      </q-item>
+                    </template>
                   </q-select>
                 </div>
                 <div class="col-12 col-md-4">
                   <q-select v-model="editUser.id_club" :options="clubOptions" label="Club" outlined dense emit-value
-                    map-options clearable />
+                    map-options clearable menu-self="top middle" menu-anchor="bottom middle">
+                    <template v-slot:no-option>
+                      <q-item>
+                        <q-item-section class="text-grey">
+                          Aucun club disponible
+                        </q-item-section>
+                      </q-item>
+                    </template>
+                  </q-select>
                 </div>
                 <div class="col-12 col-md-4">
                   <q-select v-model="editUser.id_grade" :options="gradeOptions" label="Grade" outlined dense emit-value
-                    map-options clearable />
+                    map-options clearable menu-self="top middle" menu-anchor="bottom middle">
+                    <template v-slot:no-option>
+                      <q-item>
+                        <q-item-section class="text-grey">
+                          Aucun grade disponible
+                        </q-item-section>
+                      </q-item>
+                    </template>
+                  </q-select>
                 </div>
               </div>
             </div>
@@ -361,7 +392,7 @@
               <div class="text-subtitle1 q-mb-sm">Informations de compte</div>
               <div class="row q-col-gutter-md">
                 <div class="col-12 col-md-6">
-                  <q-input v-model="editUser.avatar_seed" label="Avatar Seed" outlined dense
+                  <q-input v-model="editUser.avatar_seed" label="Avatar Seed" outlined dense 
                     hint="Laissez vide pour l'avatar par défaut" />
                 </div>
                 <div class="col-12 col-md-6 flex items-center">
@@ -462,6 +493,11 @@ interface RawClub {
   name: string
 }
 
+interface RawGrade {
+  id: number
+  name: string
+}
+
 interface EditUserForm {
   id: number | null;
   first_name: string;
@@ -522,22 +558,35 @@ interface Club { id: number; name: string }
 const clubs = ref<Club[]>([])
 const clubFilter = ref<number | null>(null)
 
+// État pour les grades
+const grades = ref<{id: number, name: string}[]>([])
+
+const getGradeName = computed(() => {
+  return (gradeId: number | null): string => {
+    if (!gradeId) return '—';
+    const grade = grades.value.find(g => g.id === gradeId);
+    return grade ? grade.name : '—';
+  };
+});
+
 // Récupère la liste des clubs actifs
 async function fetchClubs(): Promise<void> {
   try {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
     const res = await fetch(`${API_URL}/clubs`, { credentials: 'include' })
+    
     if (!res.ok) throw new Error(`Erreur HTTP clubs: ${res.status}`)
-    const body = await res.json() as { clubs: RawClub[] }
+    
+    const body = await res.json() as { clubs: RawClub[] }  // Utilisez le type ici
+    
     if (!Array.isArray(body.clubs)) {
-      console.error('Réponse clubs inattendue:', body)
       return
     }
 
-    // On efface d’abord tout vieux contenu
+    // On efface d'abord tout vieux contenu
     clubs.value = []
     // Puis on remplit avec les vraies données
-    clubs.value = body.clubs.map(c => ({
+    clubs.value = body.clubs.map((c: RawClub) => ({  // Ajoutez le type ici aussi
       id: c.id,
       name: c.name
     }))
@@ -547,16 +596,16 @@ async function fetchClubs(): Promise<void> {
   }
 }
 
-// État pour les grades
-const grades = ref<{id: number, name: string}[]>([])
-
-// Récupère la liste des grades
+// Puis modifiez fetchGrades
 async function fetchGrades(): Promise<void> {
   try {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
     const res = await fetch(`${API_URL}/grades`, { credentials: 'include' })
+    
     if (!res.ok) throw new Error(`Erreur HTTP grades: ${res.status}`)
-    const body = await res.json() as { grades: {id: number, name: string}[] }
+    
+    const body = await res.json() as { grades: RawGrade[] }  // Utilisez le type ici
+    
     if (!Array.isArray(body.grades)) {
       console.error('Réponse grades inattendue:', body)
       return
@@ -565,7 +614,10 @@ async function fetchGrades(): Promise<void> {
     // On efface d'abord tout vieux contenu
     grades.value = []
     // Puis on remplit avec les vraies données
-    grades.value = body.grades
+    grades.value = body.grades.map((g: RawGrade) => ({  // Ajoutez le type ici aussi
+      id: g.id,
+      name: g.name
+    }))
   }
   catch (err) {
     console.error('Erreur fetchGrades:', err)
@@ -708,7 +760,6 @@ async function viewDetails(user: User): Promise<void> {
     }
 
     const data = await res.json()
-    console.log("Données utilisateur reçues:", data)
 
     if (!data.user) {
       throw new Error("Format de réponse incorrect")
@@ -716,6 +767,15 @@ async function viewDetails(user: User): Promise<void> {
 
     // 2) Formatage des données
     const fresh = data.user
+
+    // Récupérer le nom du grade si l'ID est présent mais que le nom n'est pas fourni
+    let gradeName = fresh.grade_name
+    if (fresh.id_grade && !fresh.grade_name) {
+      const grade = grades.value.find(g => g.id === fresh.id_grade)
+      if (grade) {
+        gradeName = grade.name
+      }
+    }
 
     // S'assurer que toutes les propriétés nécessaires existent
     selectedUser.value = {
@@ -733,7 +793,7 @@ async function viewDetails(user: User): Promise<void> {
       id_club: fresh.id_club || null,
       club_name: fresh.club_name || null,
       id_grade: fresh.id_grade || null,
-      grade_name: fresh.grade_name || null,
+      grade_name: gradeName || null,
       id_tournament_waiting: fresh.id_tournament_waiting || null,
       tournament_name: fresh.tournament_name || null,
       is_active: Boolean(fresh.is_active),
@@ -741,9 +801,6 @@ async function viewDetails(user: User): Promise<void> {
       created_at: fresh.created_at || new Date().toISOString()
     }
 
-    console.log("Utilisateur formaté:", selectedUser.value)
-
-    // 3) on ouvre la modal
     showDetailsDialog.value = true
   } catch (err) {
     console.error("Erreur lors de la récupération des détails:", err)
@@ -787,26 +844,46 @@ const formatCreatedDate = (dateStr?: string): string => {
 }
 
 function openEdit(user: User): void {
-  // Copie profonde des valeurs pour éviter de modifier directement l'utilisateur
+  
+  // Réinitialiser le formulaire d'abord pour éviter les valeurs résiduelles
+  Object.assign(editUser, {
+    id: null,
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    birth_date: '',
+    id_role: 3,
+    id_gender: 1,
+    weight: null,
+    nationality: 'Française',
+    id_club: null,
+    id_tournament_waiting: null,
+    is_active: true,
+    avatar_seed: null,
+    id_grade: null
+  });
+  
+  // Ensuite, remplir avec les données de l'utilisateur
   Object.assign(editUser, {
     id: user.id,
-    first_name: user.first_name,
-    last_name: user.last_name,
-    email: user.email,
+    first_name: user.first_name || '',
+    last_name: user.last_name || '',
+    email: user.email || '',
     phone: user.phone || '',
-    birth_date: user.birth_date ? user.birth_date.split('T')[0] : '', // Format YYYY-MM-DD
-    id_role: user.id_role,
-    id_gender: user.id_gender,
-    weight: user.weight,
-    nationality: user.nationality,
-    id_club: user.id_club,
+    birth_date: user.birth_date ? user.birth_date.split('T')[0] : '',
+    id_role: user.id_role !== undefined ? Number(user.id_role) : 3,
+    id_gender: user.id_gender !== undefined ? Number(user.id_gender) : 1,
+    weight: user.weight !== undefined && user.weight !== null ? Number(user.weight) : null,
+    nationality: user.nationality || 'Française',
+    id_club: user.id_club !== undefined && user.id_club !== null ? Number(user.id_club) : null,
     id_tournament_waiting: user.id_tournament_waiting,
-    is_active: user.is_active,
-    avatar_seed: user.avatar_seed,
-    id_grade: user.id_grade
-  })
-
-  showEditDialog.value = true
+    is_active: typeof user.is_active === 'boolean' ? user.is_active : true,
+    avatar_seed: user.avatar_seed || 'default',
+    id_grade: user.id_grade !== undefined && user.id_grade !== null ? Number(user.id_grade) : null
+  });
+  
+  showEditDialog.value = true;
 }
 
 function toggleStatus(user: User): void {
@@ -889,17 +966,21 @@ async function saveUser(): Promise<void> {
       return
     }
 
+    // Récupérer l'utilisateur original pour conserver les valeurs inchangées
+    const originalUser = users.value.find(u => u.id === editUser.id);
+
     // Préparer les données pour l'API
     const userData = {
       first_name: editUser.first_name,
       last_name: editUser.last_name,
       email: editUser.email,
-      phone: editUser.phone,
-      birth_date: editUser.birth_date,
+      phone: editUser.phone === '' ? null : editUser.phone,
+      birth_date: editUser.birth_date || undefined,
       id_role: editUser.id_role,
-      id_gender: editUser.id_gender,
-      weight: editUser.weight,
-      nationality: editUser.nationality,
+      id_gender: editUser.id_gender || (originalUser ? originalUser.id_gender : 1),
+      weight: editUser.weight === null || editUser.weight === undefined ? 
+              (originalUser ? originalUser.weight : null) : editUser.weight,
+      nationality: editUser.nationality || '',
       id_club: editUser.id_club,
       is_active: editUser.is_active,
       avatar_seed: editUser.avatar_seed || 'default',
@@ -971,10 +1052,37 @@ onMounted(async () => {
     return
   }
 
-  await Promise.all([
-    fetchClubs(),
-    fetchGrades(),
-    fetchUsers()
-  ])
+  isLoading.value = true;
+
+  try {
+    // Chargement séquentiel pour assurer que tout est bien chargé
+    await fetchClubs();
+    
+    await fetchGrades();
+    
+    await fetchUsers();
+  } catch (error) {
+    console.error("Erreur lors du chargement des données:", error);
+    errorMessage.value = "Erreur lors du chargement des données";
+  } finally {
+    isLoading.value = false;
+  }
 })
 </script>
+
+<style>
+/* Augmenter le z-index pour les dialogues/modales */
+.q-dialog {
+  z-index: 6000 !important;
+}
+
+/* Augmenter encore plus le z-index pour les menus */
+.q-menu {
+  z-index: 7000 !important;
+}
+
+/* Pour éviter les problèmes de superposition d'autres éléments */
+.q-select__dropdown-icon {
+  z-index: 1 !important;
+}
+</style>

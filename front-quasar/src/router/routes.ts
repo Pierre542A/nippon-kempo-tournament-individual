@@ -43,6 +43,24 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'admin/create-club',
+        component: () => import('pages/CreateClubPage.vue'),
+        meta: {
+          title: 'Créer un club',
+          requiresAuth: true,
+          requiresAdmin: true
+        }
+      },
+      {
+        path: '/admin/edit-club/:id',
+        component: () => import('pages/EditClubPage.vue'),
+        meta: { 
+          requiresAuth: true,
+          adminOnly: true,
+          title: 'Modifier un club'
+        }
+      },
+      {
         path: 'manager',
         component: () => import('pages/ManagerPage.vue'),
         meta: {
