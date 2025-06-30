@@ -99,7 +99,7 @@
       <div class="form-field">
         <div class="field-label">
           <q-icon name="language" color="primary" />
-          <span>Site Web</span>
+          <span>Site Web *</span>
         </div>
         <q-input 
           v-model="form.website"
@@ -325,7 +325,7 @@ async function save() {
   
   saving.value = true;
   try {
-    const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const API = import.meta.env.VITE_API_URL;
     const res = await fetch(`${API}/clubs/${props.club.id}`, {
       method:      'PUT',
       credentials: 'include',
@@ -416,7 +416,7 @@ async function deleteClub() {
 
   saving.value = true;
   try {
-    const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const API = import.meta.env.VITE_API_URL;
     const res = await fetch(`${API}/clubs/${props.club.id}`, {
       method:      'PUT',
       credentials: 'include',
@@ -488,7 +488,7 @@ async function reactivateClub() {
 
   saving.value = true;
   try {
-    const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const API = import.meta.env.VITE_API_URL;
     const res = await fetch(`${API}/clubs/${props.club.id}`, {
       method:      'PUT',
       credentials: 'include',
@@ -547,7 +547,7 @@ async function reactivateClub() {
   width: 100%;
   background-color: white;
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   padding: 24px;
   position: relative;
 }

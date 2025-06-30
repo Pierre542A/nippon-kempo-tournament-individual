@@ -241,16 +241,6 @@
                 <q-tooltip>Modifier</q-tooltip>
               </q-btn>
               
-              <q-btn
-                flat
-                round
-                size="sm"
-                color="info"
-                icon="people"
-                :to="`/clubs/${props.row.id}/members`"
-              >
-                <q-tooltip>Voir les membres</q-tooltip>
-              </q-btn>
             </q-td>
           </template>
           
@@ -419,7 +409,7 @@ async function createClub() {
   loading.value = true;
   
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const API_URL = import.meta.env.VITE_API_URL;
     const response = await fetch(`${API_URL}/clubs`, {
       method: 'POST',
       credentials: 'include',
@@ -499,7 +489,7 @@ async function fetchClubs() {
   loadingClubs.value = true;
   
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const API_URL = import.meta.env.VITE_API_URL;
     const response = await fetch(`${API_URL}/clubs?show_all=true`, {
       credentials: 'include'
     });
@@ -528,7 +518,7 @@ async function toggleClubStatus(club: Club) {
   toggleLoading.value = club.id;
   
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const API_URL = import.meta.env.VITE_API_URL;
     const response = await fetch(`${API_URL}/clubs/${club.id}`, {
       method: 'PUT',
       credentials: 'include',

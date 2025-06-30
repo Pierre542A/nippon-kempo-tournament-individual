@@ -572,7 +572,7 @@ const getGradeName = computed(() => {
 // Récupère la liste des clubs actifs
 async function fetchClubs(): Promise<void> {
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+    const API_URL = import.meta.env.VITE_API_URL
     const res = await fetch(`${API_URL}/clubs`, { credentials: 'include' })
     
     if (!res.ok) throw new Error(`Erreur HTTP clubs: ${res.status}`)
@@ -599,7 +599,7 @@ async function fetchClubs(): Promise<void> {
 // Puis modifiez fetchGrades
 async function fetchGrades(): Promise<void> {
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+    const API_URL = import.meta.env.VITE_API_URL
     const res = await fetch(`${API_URL}/grades`, { credentials: 'include' })
     
     if (!res.ok) throw new Error(`Erreur HTTP grades: ${res.status}`)
@@ -721,7 +721,7 @@ async function fetchUsers(): Promise<void> {
   errorMessage.value = ''
 
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+    const API_URL = import.meta.env.VITE_API_URL
     const response = await fetch(`${API_URL}/admin/users`, { credentials: 'include' })
     if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`)
 
@@ -752,7 +752,7 @@ async function fetchUsers(): Promise<void> {
 async function viewDetails(user: User): Promise<void> {
   try {
     // 1) on récupère le user "à jour" depuis l'API
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+    const API_URL = import.meta.env.VITE_API_URL
     const res = await fetch(`${API_URL}/users/${user.id}`, { credentials: 'include' })
 
     if (!res.ok) {
@@ -896,7 +896,7 @@ async function updateUserStatus(): Promise<void> {
 
   isStatusUpdating.value = true
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const API_URL = import.meta.env.VITE_API_URL;
     const response = await fetch(`${API_URL}/users/${userToUpdate.value.id}`, {
       method: 'PUT',
       headers: {
@@ -988,7 +988,7 @@ async function saveUser(): Promise<void> {
     }
 
     // Appel API pour mettre à jour l'utilisateur
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+    const API_URL = import.meta.env.VITE_API_URL
     const response = await fetch(`${API_URL}/users/${editUser.id}`, {
       method: 'PUT',
       headers: {

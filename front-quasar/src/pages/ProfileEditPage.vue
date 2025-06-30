@@ -66,8 +66,7 @@
                 </div>
                 <div class="col-12 col-sm-6">
                   <q-select v-model="form.nationality" :options="['Française', 'Autre']"
-                            label="Nationalité" filled
-                            :rules="[v => !!v || 'La nationalité est requise']" />
+                            label="Nationalité" filled />
                 </div>
                 <div class="col-12">
                   <q-select v-model="form.club" :options="clubOptions"
@@ -83,9 +82,8 @@
                 </div>
                 <div class="col-12">
                   <q-select v-model="form.gender" :options="genderOptions"
-                            option-value="id" option-label="name"
-                            label="Genre" filled emit-value map-options
-                            :rules="[v => !!v || 'Le genre est requis']" />
+                          option-value="id" option-label="name"
+                          label="Genre" filled emit-value map-options />
                 </div>
 
                 <!-- Changer de mot de passe -->
@@ -205,7 +203,6 @@ import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { useUserStore } from '../stores/user'
 
-// Interfaces pour typer correctement les réponses API
 interface Grade {
   id: number;
   name: string;
@@ -270,14 +267,18 @@ const randSeed = () => Math.random().toString(36).slice(2, 10)
 /* -------------------- formulaire ----------------------------------- */
 interface FormData {
   firstName: string; lastName: string; email: string; birthDate: string
-  grade: number | null; club: number | null; currentPassword: string; gender: number
+  grade: number | null; club: number | null; currentPassword: string; gender: number | null;
   newPassword: string; confirmPassword: string; avatarSeed: string
-  weight: number | null; phone: string; nationality: string
+  weight: number | null; phone: string; nationality: string | null
 }
 
-// Options pour les champs select avec id et nom 
-const gradeOptions = ref<Grade[]>([])
-const clubOptions = ref<Club[]>([])
+interface Option {
+  id: number;
+  name: string;
+}
+
+const clubOptions = ref<Option[]>([])
+const gradeOptions = ref<Option[]>([])
 
 const genderOptions = [
   { id: 1, name: 'Homme' },
@@ -286,17 +287,12 @@ const genderOptions = [
 
 const form = ref<FormData>({
   firstName: '', lastName: '', email: '', birthDate: '',
-  grade: null, club: null, currentPassword: '', gender: 1,
+  grade: null, club: null, currentPassword: '', gender: null,
   newPassword: '', confirmPassword: '', avatarSeed: '',
-  weight: null, phone: '', nationality: 'Française'
+  weight: null, phone: '', nationality: ''
 })
 
 const validatePasswordMatch = () => {
-  console.log('Validation des mots de passe:');
-  console.log('Nouveau mot de passe:', form.value.newPassword);
-  console.log('Confirmation:', form.value.confirmPassword);
-  console.log('Égaux?', form.value.newPassword === form.value.confirmPassword);
-  
   return !form.value.newPassword || 
          form.value.newPassword === form.value.confirmPassword || 
          'Les mots de passe ne correspondent pas';
@@ -318,7 +314,6 @@ const refreshSeeds = () => {
 const selectAvatar = (seed: string) => {
   currentSeed.value = seed
   form.value.avatarSeed = seed
-  console.log('Avatar sélectionné, nouvelle seed:', seed);
   $q.notify({ color: 'positive', message: 'Avatar sélectionné' })
   showAvatarDialog.value = false
 }
@@ -332,7 +327,6 @@ const fetchGrades = async () => {
       gradeOptions.value = gradesResponse.data.grades
     }
   } catch (error) {
-    console.error('Erreur chargement des grades:', error)
     const err = error as ApiError
     $q.notify({
       color: 'negative',
@@ -351,7 +345,6 @@ const fetchClubs = async () => {
       clubOptions.value = clubsResponse.data.clubs
     }
   } catch (error) {
-    console.error('Erreur chargement des clubs:', error)
     const err = error as ApiError
     $q.notify({
       color: 'negative',
@@ -365,12 +358,10 @@ const fetchClubs = async () => {
 /* -------------------- Remplir le formulaire avec les données utilisateur -------------------- */
 const fillFormWithUserData = () => {
   if (!store.user) {
-    console.error('Utilisateur non disponible dans le store')
     return false
   }
   
   const u = store.user
-  console.log('Remplissage du formulaire avec les données utilisateur:', u);
   
   // Définir une valeur par défaut pour birthDate pour éviter le undefined
   let birthDateStr = ''
@@ -386,8 +377,7 @@ const fillFormWithUserData = () => {
         const day = String(birthDate.getDate()).padStart(2, '0')
         birthDateStr = `${year}-${month}-${day}`
       }
-    } catch (error) {
-      console.error('Erreur lors du formatage de la date:', error)
+    } catch {
       // En cas d'erreur, on essaie d'extraire juste la partie date
       if (typeof u.birth_date === 'string') {
         const parts = u.birth_date.split('T')
@@ -398,9 +388,6 @@ const fillFormWithUserData = () => {
     }
   }
 
-  // Log spécifique pour voir la valeur de la seed d'avatar
-  console.log('Avatar seed dans les données utilisateur:', u.avatar_seed);
-  
   form.value = {
     firstName: u.first_name,
     lastName : u.last_name,
@@ -420,31 +407,23 @@ const fillFormWithUserData = () => {
   
   // Mise à jour de currentSeed avec la valeur de l'avatar de l'utilisateur
   currentSeed.value = u.avatar_seed || 'default'
-  console.log('Valeur de currentSeed après remplissage:', currentSeed.value);
   
   return true
 }
 
 /* -------------------- init ----------------------------------------- */
-onMounted(async () => {
-  console.log('PageEditProfile - onMounted');
-  
+onMounted(async () => {  
   // Charger les listes de grades et clubs depuis l'API
   await Promise.all([fetchGrades(), fetchClubs()])
   
   // Remplir le formulaire si l'utilisateur est déjà chargé
   if (store.user) {
-    console.log('Utilisateur déjà dans le store:', store.user);
     fillFormWithUserData()
   } else {
-    // Sinon recharger la session utilisateur puis remplir le formulaire
-    console.log('Aucun utilisateur dans le store, chargement de la session');
     try {
       await store.fetchSession()
-      console.log('Session récupérée:', store.user);
       fillFormWithUserData()
-    } catch (error) {
-      console.error('Erreur lors du chargement de la session:', error)
+    } catch {
       $q.notify({
         color: 'negative',
         message: 'Erreur lors du chargement de votre profil, veuillez vous reconnecter'
@@ -458,7 +437,6 @@ onMounted(async () => {
 
 // Surveiller les changements dans le store.user pour mettre à jour le formulaire
 watch(() => store.user, (newUser) => {
-  console.log('Watch: store.user a changé', newUser);
   if (newUser) {
     fillFormWithUserData()
   }
@@ -485,21 +463,25 @@ const onSubmit = async () => {
   }
   
   loading.value.submit = true
-  try {
-    console.log('Début de la mise à jour du profil');
-    
+  try {    
     // Préparer les données à envoyer au serveur
     const payload: Record<string, string | number | boolean | null> = {
       first_name: form.value.firstName,
       last_name: form.value.lastName,
       email: form.value.email,
       birth_date: form.value.birthDate, // Juste la date sans l'heure
-      nationality: form.value.nationality,
-      id_gender: form.value.gender, // S'assurer que cette valeur est correctement transmise
       avatar_seed: form.value.avatarSeed // Inclure la seed de l'avatar dans la même requête
     }
     
     // Ajouter les champs optionnels seulement s'ils ont une valeur
+    if (form.value.nationality) {
+      payload.nationality = form.value.nationality;
+    }
+
+    if (form.value.gender !== null) {
+      payload.id_gender = form.value.gender;
+    }
+
     if (form.value.phone) {
       payload.phone = form.value.phone;
     }
@@ -516,45 +498,29 @@ const onSubmit = async () => {
       payload.id_club = form.value.club;
     }
     
-    // Log détaillé pour voir ce qu'on envoie à l'API
-    console.log('Payload préparé pour la mise à jour:', JSON.stringify(payload, null, 2));
-    
     // Si changement de mot de passe, ajouter les champs correspondants
     if (form.value.newPassword && form.value.currentPassword) {
       Object.assign(payload, {
         password: form.value.newPassword,
         current_password: form.value.currentPassword
       })
-      console.log('Ajout des informations de changement de mot de passe');
     }
     
-    console.log('URL de mise à jour:', `${import.meta.env.VITE_API_URL}/users/${store.user!.id}`);
-    
     // Mettre à jour le profil (une seule requête pour tout, y compris l'avatar)
-    const response = await axios.put(`${import.meta.env.VITE_API_URL}/users/${store.user!.id}`, payload);
-    
-    console.log('Réponse de la mise à jour:', response.data);
-    
+    await axios.put(`${import.meta.env.VITE_API_URL}/users/${store.user!.id}`, payload);
+        
     // Force un rechargement complet des données de session pour actualiser le store Pinia
     await store.fetchSession();
-    
-    // Vérifier que le avatar_seed a bien été mis à jour dans le store
-    console.log('Nouvelle valeur de avatar_seed dans le store:', store.user?.avatar_seed);
-    
+        
     // Afficher la notification de succès
     $q.notify({ color: 'positive', message: 'Profil mis à jour avec succès' })
     
     // Redirection vers la page de profil
     router.push('/profile')
   } catch (error) {
-    console.error('Erreur mise à jour profil:', error)
     // Gestion spécifique des erreurs d'email déjà utilisé
     const err = error as ApiError
-    
-    console.error('Détails de l\'erreur:', err.response?.data);
-    
-    // Vérifier si c'est une erreur d'email en double 
-    // (souvent ces erreurs ont un code HTTP 409 Conflict ou un message spécifique)
+        
     if (err.response?.status === 409 || 
         (err.response?.data?.error && err.response.data.error.includes('email')) || 
         (err.response?.data?.message && err.response.data.message.includes('email'))) {
@@ -591,7 +557,6 @@ const deleteAccount = async () => {
     
     router.push('/')
   } catch (error) {
-    console.error('Erreur suppression compte:', error)
     const err = error as ApiError
     $q.notify({
       color: 'negative',

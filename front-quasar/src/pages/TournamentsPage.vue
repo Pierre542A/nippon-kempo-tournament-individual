@@ -471,8 +471,7 @@ async function fetchTournaments () {
     )
 
     buildFilters()
-  } catch (err) {
-    console.error('Erreur /tournaments', err)
+  } catch {
     $q.notify({ color: 'negative', message: 'Erreur lors du chargement des tournois', icon: 'error' })
     tournaments.value = []
   } finally {

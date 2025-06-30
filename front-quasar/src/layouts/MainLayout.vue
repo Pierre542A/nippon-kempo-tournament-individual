@@ -38,44 +38,231 @@
             <q-btn color="secondary" class="text-white" label="S'inscrire" @click="showSignupDialog = true" />
           </div>
 
-          <!-- Signup dialog -->
-          <q-dialog v-model="showSignupDialog" transition-show="scale" transition-hide="scale">
-            <q-card style="min-width:300px;max-width:400px;">
-              <q-card-section class="row items-center">
+          <!-- Signup dialog optimisée -->
+          <q-dialog v-model="showSignupDialog" transition-show="fade" transition-hide="fade" maximized>
+            <q-card class="signup-modal" style="max-width: 800px; width: 100%; margin: auto;">
+              <q-card-section class="bg-primary text-white">
                 <div class="text-h6">Inscription</div>
-                <q-space />
-                <q-btn icon="close" flat round dense v-close-popup />
+                <q-btn icon="close" flat round dense v-close-popup class="absolute-right" color="white" />
               </q-card-section>
 
-              <q-form @submit.prevent="handleSignup">
-                <q-card-section>
-                  <q-input v-model="signupForm.first_name" label="Prénom" filled class="q-mb-sm" required />
-                  <q-input v-model="signupForm.last_name"  label="Nom"    filled class="q-mb-sm" required />
-                  <q-input v-model="signupForm.email"      label="Email"  type="email" filled class="q-mb-sm" required />
-
-                  <q-input v-model="signupForm.password"         label="Mot de passe" type="password" filled class="q-mb-sm" required />
-                  <q-input v-model="signupForm.confirm_password" label="Confirmer le mot de passe" type="password" filled class="q-mb-sm" required />
-
-                  <q-input v-model="signupForm.birth_date" label="Date de naissance" type="date" filled class="q-mb-sm" required />
-
-                  <q-input v-model.number="signupForm.weight" label="Poids (kg)" type="number" min="1" filled class="q-mb-sm" required />
-
-                  <q-input v-model="signupForm.phone" label="Téléphone" filled class="q-mb-sm" />
-
-                  <q-select v-model="signupForm.nationality" label="Nationalité" filled :options="['Française','Autre']" class="q-mb-sm" required />
-
-                  <div class="q-gutter-sm q-my-md">
-                    <span>Genre :</span>
-                    <q-radio v-model.number="signupForm.id_gender" :val="1" label="Homme" />
-                    <q-radio v-model.number="signupForm.id_gender" :val="2" label="Femme" />
+              <q-form @submit.prevent="handleSignup" class="q-pa-md">
+                <!-- Informations personnelles -->
+                <div class="text-subtitle1 q-mb-sm text-primary">Informations personnelles</div>
+                
+                <!-- Ligne 1: Prénom et Nom -->
+                <div class="row q-col-gutter-md">
+                  <div class="col-12 col-md-6">
+                    <q-input 
+                      v-model="signupForm.first_name" 
+                      label="Prénom *" 
+                      outlined 
+                      :rules="[val => !!val || 'Le prénom est requis']"
+                    >
+                      <template v-slot:prepend>
+                        <q-icon name="person" color="primary" />
+                      </template>
+                    </q-input>
                   </div>
-                </q-card-section>
+                  <div class="col-12 col-md-6">
+                    <q-input 
+                      v-model="signupForm.last_name" 
+                      label="Nom *" 
+                      outlined 
+                      :rules="[val => !!val || 'Le nom est requis']"
+                    >
+                      <template v-slot:prepend>
+                        <q-icon name="badge" color="primary" />
+                      </template>
+                    </q-input>
+                  </div>
+                </div>
+                
+                <!-- Ligne 2: Email -->
+                <q-input 
+                  v-model="signupForm.email" 
+                  label="Email *" 
+                  type="email" 
+                  outlined 
+                  class="q-my-sm"
+                  :rules="[
+                    val => !!val || 'L\'email est requis',
+                    val => /^[^@]+@[^@]+\.[^@]+$/.test(val) || 'Format d\'email invalide'
+                  ]"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="email" color="primary" />
+                  </template>
+                </q-input>
+                
+                <!-- Ligne 3: Mot de passe et confirmation -->
+                <div class="row q-col-gutter-md">
+                  <div class="col-12 col-md-6">
+                    <q-input 
+                      v-model="signupForm.password" 
+                      label="Mot de passe *" 
+                      :type="showPassword ? 'text' : 'password'" 
+                      outlined 
+                      :rules="[val => !!val || 'Le mot de passe est requis']"
+                    >
+                      <template v-slot:prepend>
+                        <q-icon name="lock" color="primary" />
+                      </template>
+                      <template v-slot:append>
+                        <q-icon
+                          :name="showPassword ? 'visibility_off' : 'visibility'"
+                          class="cursor-pointer"
+                          @click="showPassword = !showPassword"
+                        />
+                      </template>
+                    </q-input>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <q-input 
+                      v-model="signupForm.confirm_password" 
+                      label="Confirmer mot de passe *" 
+                      :type="showPassword ? 'text' : 'password'" 
+                      outlined 
+                      :rules="[
+                        val => !!val || 'La confirmation est requise',
+                        val => val === signupForm.password || 'Les mots de passe ne correspondent pas'
+                      ]"
+                    >
+                      <template v-slot:prepend>
+                        <q-icon name="lock" color="primary" />
+                      </template>
+                    </q-input>
+                  </div>
+                </div>
+                
+                <!-- Séparateur -->
+                <div class="text-subtitle1 q-my-sm text-primary">Informations sportives</div>
+                
+                <!-- Ligne 4: Date de naissance et Genre -->
+                <div class="row q-col-gutter-md">
+                  <div class="col-12 col-md-6">
+                    <q-input 
+                      v-model="signupForm.birth_date" 
+                      label="Date de naissance *" 
+                      type="date" 
+                      outlined 
+                      :rules="[val => !!val || 'La date de naissance est requise']"
+                    >
+                      <template v-slot:prepend>
+                        <q-icon name="event" color="primary" />
+                      </template>
+                    </q-input>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <q-field 
+                      label="Genre *" 
+                      stack-label 
+                      outlined
+                    >
+                      <template v-slot:control>
+                        <div class="q-py-sm full-width">
+                          <q-radio v-model.number="signupForm.id_gender" :val="1" label="Homme" class="q-mr-md" />
+                          <q-radio v-model.number="signupForm.id_gender" :val="2" label="Femme" />
+                        </div>
+                      </template>
+                      <template v-slot:prepend>
+                        <q-icon name="people" color="primary" />
+                      </template>
+                    </q-field>
+                  </div>
+                </div>
+                
+                <!-- Ligne 5: Poids et Téléphone -->
+                <div class="row q-col-gutter-md q-mt-sm">
+                  <div class="col-12 col-md-6">
+                    <q-input 
+                      v-model.number="signupForm.weight" 
+                      label="Poids (kg) *" 
+                      type="number" 
+                      min="1" 
+                      outlined 
+                      :rules="[val => !!val || 'Le poids est requis']"
+                    >
+                      <template v-slot:prepend>
+                        <q-icon name="fitness_center" color="primary" />
+                      </template>
+                    </q-input>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <q-input 
+                      v-model="signupForm.phone" 
+                      label="Téléphone *" 
+                      outlined 
+                      :rules="[val => !!val || 'Le téléphone est requis']"
+                    >
+                      <template v-slot:prepend>
+                        <q-icon name="phone" color="primary" />
+                      </template>
+                    </q-input>
+                  </div>
+                </div>
+                
+                <!-- Ligne 6: Nationalité, Club et Grade -->
+                <div class="row q-col-gutter-md q-mt-sm">
+                  <div class="col-12 col-md-4">
+                    <q-select 
+                      v-model="signupForm.nationality" 
+                      label="Nationalité *" 
+                      outlined 
+                      :options="['Française', 'Autre']" 
+                      emit-value
+                      popup-content-class="z-top"
+                    >
+                      <template v-slot:prepend>
+                        <q-icon name="flag" color="primary" />
+                      </template>
+                    </q-select>
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-select 
+                      v-model="signupForm.id_club" 
+                      label="Club *" 
+                      outlined
+                      :options="clubOptions"
+                      option-value="id"
+                      option-label="name"
+                      emit-value
+                      map-options
+                      menu-self="top middle"
+                      transition-show="jump-down"
+                      transition-hide="jump-up"
+                      popup-content-class="z-top"
+                    >
+                      <template v-slot:prepend>
+                        <q-icon name="business" color="primary" />
+                      </template>
+                    </q-select>
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-select 
+                      v-model="signupForm.id_grade" 
+                      label="Grade *" 
+                      outlined
+                      :options="gradeOptions"
+                      option-value="id"
+                      option-label="name"
+                      emit-value
+                      map-options
+                      menu-self="top middle"
+                      transition-show="jump-down"
+                      transition-hide="jump-up"
+                      popup-content-class="z-top"
+                    >
+                      <template v-slot:prepend>
+                        <q-icon name="military_tech" color="primary" />
+                      </template>
+                    </q-select>
+                  </div>
+                </div>
 
-                <q-card-actions align="right">
-                  <q-btn flat label="Annuler" color="primary" v-close-popup />
-                  <q-btn label="Valider" color="primary" type="submit" :loading="store.loading">
-                    <template #loading><q-spinner-facebook /></template>
-                  </q-btn>
+                <q-card-actions align="right" class="q-mt-md">
+                  <q-btn flat label="Annuler" color="negative" v-close-popup />
+                  <q-btn label="S'inscrire" color="primary" type="submit" :loading="store.loading" />
                 </q-card-actions>
               </q-form>
             </q-card>
@@ -204,8 +391,8 @@
             <q-item to="/admin/create-club" clickable v-ripple>
               <q-item-section avatar><q-icon name="add_business" /></q-item-section>
               <q-item-section>
-                <q-item-label>Créer un club</q-item-label>
-                <q-item-label caption>Ajouter un nouveau club au système</q-item-label>
+                <q-item-label>Gérez les clubs</q-item-label>
+                <q-item-label caption>Modifier ou ajouter un nouveau club.</q-item-label>
               </q-item-section>
             </q-item>
           </template>
@@ -237,10 +424,55 @@ const showLoginDialog         = ref(false)
 const showSignupDialog        = ref(false)
 const showForgotPasswordDialog = ref(false)
 const isPwd                   = ref(true)
+const showPassword            = ref(false)
 const forgotPasswordLoading   = ref(false)
 
+// To this:
+interface Option {
+  id: number;
+  name: string;
+}
+
+const clubOptions = ref<Option[]>([])
+const gradeOptions = ref<Option[]>([])
+
+// Ajoutez ces interfaces
+interface ClubResponse {
+  id: number;
+  name: string;
+}
+
+interface GradeResponse {
+  id: number;
+  name: string;
+}
+
+interface ApiResponse<T> {
+  success: boolean;
+  clubs?: T[];
+  grades?: T[];
+}
+
+interface SignupFormData {
+  first_name: string;
+  last_name: string;
+  email: string;
+  password: string;
+  confirm_password: string;
+  birth_date: string;
+  weight: number;
+  phone: string;
+  nationality: string;
+  id_gender: number;
+  id_grade: number;
+  id_club: number;
+  id_role: number;
+  is_active: boolean;
+  avatar_seed: string;
+}
+
 // ---- Forms ----
-const signupForm = ref({
+const signupForm = ref<SignupFormData>({
   first_name:        '',
   last_name:         '',
   email:             '',
@@ -306,6 +538,67 @@ interface PasswordResetResponse {
   error?: string;
 }
 
+// Fonction pour charger les clubs et grades depuis l'API
+async function loadFormOptions() {
+  try {
+    const API_URL = import.meta.env.VITE_API_URL;
+    
+    // Charger les clubs
+    const clubsResponse = await fetch(`${API_URL}/clubs`, {
+      credentials: 'include'
+    });
+    
+    if (clubsResponse.ok) {
+      const clubsData = await clubsResponse.json() as ApiResponse<ClubResponse>;
+      if (clubsData.clubs && Array.isArray(clubsData.clubs)) {
+        clubOptions.value = clubsData.clubs.map((club: { id: number; name: string }) => ({
+          id: club.id,
+          name: club.name
+        }));
+        
+        // Si des clubs sont disponibles, définir le premier comme club par défaut
+        if (clubOptions.value.length > 0) {
+          signupForm.value.id_club = clubOptions.value[0]!.id;
+        }
+      }
+    }
+    
+    // Charger les grades
+    const gradesResponse = await fetch(`${API_URL}/grades`, {
+      credentials: 'include'
+    });
+    
+    if (gradesResponse.ok) {
+      const gradesData = await gradesResponse.json() as ApiResponse<GradeResponse>;
+      if (gradesData.grades && Array.isArray(gradesData.grades)) {
+        gradeOptions.value = gradesData.grades.map((grade: { id: number; name: string }) => ({
+          id: grade.id,
+          name: grade.name
+        }));
+        
+        // Si des grades sont disponibles, définir le premier comme grade par défaut
+        if (gradeOptions.value.length > 0) {
+          signupForm.value.id_grade = gradeOptions.value[0]!.id;
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Erreur lors du chargement des options:', error);
+    // En cas d'erreur, utiliser des valeurs par défaut
+    if (clubOptions.value.length === 0) {
+      clubOptions.value = [
+        { id: 1, name: 'Club par défaut' }
+      ];
+    }
+    
+    if (gradeOptions.value.length === 0) {
+      gradeOptions.value = [
+        { id: 1, name: 'Débutant' }
+      ];
+    }
+  }
+}
+
 async function handleForgotPassword() {
   if (!forgotPasswordForm.value.email || !validateEmail(forgotPasswordForm.value.email)) {
     $q.notify({ 
@@ -340,9 +633,7 @@ async function handleForgotPassword() {
         color: 'negative' 
       });
     }
-  } catch (error) {
-    console.error('Erreur demande de réinitialisation:', error);
-    
+  } catch {
     // Pour des raisons de sécurité, on ne précise pas si l'email existe ou non
     $q.notify({ 
       message: 'Un email de réinitialisation a été envoyé à votre adresse si celle-ci est associée à un compte',
@@ -422,7 +713,7 @@ async function handleSignup() {
     // Champs avec valeurs par défaut
     id_grade:      signupForm.value.id_grade,
     id_club:       signupForm.value.id_club,
-    id_role:       signupForm.value.id_role,
+    id_role:       3,
     is_active:     signupForm.value.is_active,
     avatar_seed:   signupForm.value.avatar_seed
   }
@@ -439,8 +730,6 @@ async function handleSignup() {
       $q.notify({ message: 'Erreur lors de l\'inscription', color: 'negative' })
     }
   } catch (error) {
-    console.error('Erreur inscription:', error)
-    // Typage de l'erreur avec l'interface
     const err = error as ApiError
     $q.notify({ 
       message: err?.response?.data?.error || 'Erreur lors de l\'inscription', 
@@ -467,7 +756,6 @@ async function handleLogin() {
       $q.notify({ message: 'Email ou mot de passe incorrect', color: 'negative' })
     }
   } catch (error) {
-    console.error('Erreur connexion:', error)
     // Typage de l'erreur avec l'interface
     const err = error as ApiError
     $q.notify({ 
@@ -511,7 +799,7 @@ function resetForgotPasswordForm() {
   }
 }
 
-async function logout () {
+async function logout() {
   await store.logout()
   if (route.path.startsWith('/profile') || 
       route.path.startsWith('/admin') || 
@@ -523,9 +811,24 @@ async function logout () {
 
 onMounted(() => {
   store.fetchSession()
+  loadFormOptions()
 })
 </script>
 
-<style scoped>
+<style>
 .hover-underline:hover { text-decoration: underline !important; }
+
+.signup-modal {
+  border-radius: 8px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.q-menu {
+  z-index: 10000 !important;
+}
+
+.z-top {
+  z-index: 10000 !important;
+}
 </style>

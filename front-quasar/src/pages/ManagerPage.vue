@@ -200,6 +200,11 @@
 
         <!-- Onglet d'importation -->
         <q-tab-panel name="import">
+          <h2 class="text-h5">Gestion des tournois</h2>
+          <div class="q-pa-md">
+            <tournament-manager :club-id="userClub?.id || 0" />
+          </div>
+
           <h2 class="text-h5">Importation de données</h2>
           <div class="q-pa-md">
             <json-importer :club-id="userClub?.id ?? null" />
@@ -456,6 +461,8 @@ import { useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
 import ClubInfoEditor from '../components/ClubInfoEditor.vue';
 import JsonImporter from '../components/JsonImporter.vue';
+import TournamentManager from '../components/TournamentManager.vue';
+
 
 // Types
 interface RawUser {
@@ -714,8 +721,6 @@ async function checkUserClub (): Promise<void> {
   isLoadingUser.value = true;
   try {
     /* DEBUG : vérifie l'utilisateur et son id_club */
-    console.log('[checkUserClub] user =', userStore.user);
-
     if (!userStore.user || userStore.user.id_role !== 2) return;
     if (!userStore.user.id_club)                        return;
 
@@ -736,21 +741,17 @@ async function loadUserClub (): Promise<void> {
   errorMessage.value = '';
 
   /* DEBUG : construire et afficher l'URL */
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const API_URL = import.meta.env.VITE_API_URL;
   const url     = `${API_URL}/clubs/${userStore.user.id_club}`;
-  console.log('[loadUserClub] fetch →', url);
 
   try {
     const response = await fetch(url, { credentials: 'include' });
-    console.log('[loadUserClub] status →', response.status);               // DEBUG
 
     const rawBody = await response.clone().text();                         // DEBUG
-    console.log('[loadUserClub] raw body →', rawBody);                     // DEBUG
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const data = JSON.parse(rawBody);
-    console.log('[loadUserClub] data →', data);                            // DEBUG
 
     if (!data.club) throw new Error('Format de réponse incorrect');
     userClub.value = data.club;
@@ -772,16 +773,13 @@ async function loadClubMembers (): Promise<void> {
   isLoading.value = true;
   errorMessage.value = '';
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const API_URL = import.meta.env.VITE_API_URL;
   const url     = `${API_URL}/clubs/${userClub.value.id}/members`;
-  console.log('[loadClubMembers] fetch →', url);                           // DEBUG
 
   try {
     const res  = await fetch(url, { credentials: 'include' });
-    console.log('[loadClubMembers] status →', res.status);                 // DEBUG
 
     const raw  = await res.clone().text();                                 // DEBUG
-    console.log('[loadClubMembers] raw body →', raw);                      // DEBUG
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
@@ -805,7 +803,7 @@ async function loadClubMembers (): Promise<void> {
 // Charge la liste des grades disponibles
 async function loadGrades(): Promise<void> {
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const API_URL = import.meta.env.VITE_API_URL;
     const res = await fetch(`${API_URL}/grades`, { credentials: 'include' });
     
     if (!res.ok) throw new Error(`Erreur HTTP grades: ${res.status}`);
@@ -833,9 +831,7 @@ function viewMemberDetails(member: User): void {
 }
 
 // Fonction pour ouvrir le dialogue d'édition d'un membre
-function openMemberEditDialog(member: User): void {
-  console.log("Membre à modifier:", JSON.stringify(member, null, 2));
-  
+function openMemberEditDialog(member: User): void {  
   // Réinitialiser le formulaire
   Object.assign(editingMember, {
     id: null,
@@ -867,8 +863,6 @@ function openMemberEditDialog(member: User): void {
     id_role: member.id_role !== undefined ? Number(member.id_role) : 3,
     is_active: typeof member.is_active === 'boolean' ? member.is_active : true
   });
-
-  console.log("Formulaire d'édition initialisé:", JSON.stringify(editingMember, null, 2));
   
   showMemberEditDialog.value = true;
 }
@@ -914,10 +908,8 @@ async function saveMember(): Promise<void> {
       is_active: editingMember.is_active
     };
 
-    console.log("Données à envoyer à l'API:", userData);
-
     // Appel API pour mettre à jour l'utilisateur
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const API_URL = import.meta.env.VITE_API_URL;
     const response = await fetch(`${API_URL}/users/${editingMember.id}`, {
       method: 'PUT',
       headers: {
