@@ -3,7 +3,7 @@
 /* -------------------------------------------------------------------- */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import axios from 'axios'
+import axios from '@/config/api'  // <-- Changez cette ligne
 
 /* --------------------------- types utilisateur ----------------------- */
 export interface User {

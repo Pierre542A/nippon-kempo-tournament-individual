@@ -411,7 +411,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useUserStore } from '../stores/user'
-import axios from 'axios'
+import axios from '@/config/api'
 
 const route             = useRoute()
 const router            = useRouter()
@@ -544,7 +544,7 @@ async function loadFormOptions() {
     const API_URL = import.meta.env.VITE_API_URL;
     
     // Charger les clubs
-    const clubsResponse = await fetch(`${API_URL}clubs`, {
+    const clubsResponse = await fetch(`${API_URL}/clubs`, {
       credentials: 'include'
     });
     
