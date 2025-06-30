@@ -1,11 +1,7 @@
-// api/index.js
 const fastify = require("fastify")({ logger: true });
 const mysql = require("mysql2/promise");
 require("dotenv").config();
 require('events').EventEmitter.defaultMaxListeners = 15;
-
-// Import CORS
-const cors = require("@fastify/cors");
 
 // Import services et contrôleurs
 const UserService = require("../services/userService");
@@ -21,6 +17,8 @@ const gradeRoutes = require("../routes/gradeRoutes");
 const clubRoutes = require("../routes/clubRoutes");
 const passwordResetRoutes = require("../routes/passwordReset");
 const importRoutes = require("../routes/importRoutes");
+
+const cors = require("@fastify/cors");
 const cookie = require("@fastify/cookie");
 
 let isReady = false;
@@ -28,61 +26,65 @@ let isReady = false;
 const init = async () => {
   if (isReady) return;
 
-  // Configuration CORS
+  // CORS - Configuration complète pour accepter toutes les origines
   await fastify.register(cors, {
-    origin: (origin, cb) => {
-      // Permettre toutes les origines Vercel et localhost pour le développement
-      const allowedOrigins = [
-        /^https:\/\/.*\.vercel\.app$/,  // Toutes les URLs Vercel
-        /^http:\/\/localhost:\d+$/,     // Localhost avec n'importe quel port
-        /^http:\/\/127\.0\.0\.1:\d+$/   // 127.0.0.1 avec n'importe quel port
-      ];
-      
-      // Si pas d'origine (requête directe), on autorise
-      if (!origin) return cb(null, true);
-      
-      // Vérifier si l'origine correspond à un pattern autorisé
-      const isAllowed = allowedOrigins.some(pattern => pattern.test(origin));
-      
-      if (isAllowed) {
-        cb(null, true);
-      } else {
-        cb(new Error('Not allowed by CORS'));
-      }
-    },
-    credentials: true, // Important pour les cookies
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    exposedHeaders: ['Set-Cookie']
+    origin: true, // Accepte toutes les origines
+    credentials: true, // IMPORTANT pour les cookies
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    exposedHeaders: ["Set-Cookie"],
+    preflightContinue: false,
+    optionsSuccessStatus: 204
   });
 
-  // MySQL
+  // MySQL - Configuration optimisée pour Railway
   const dbConfig = {
     host: process.env.MYSQL_HOST,
+    port: parseInt(process.env.MYSQL_PORT) || 3306,
     user: process.env.MYSQL_USER,
     password: process.env.MYSQL_PASSWORD,
     database: process.env.MYSQL_DATABASE,
-    connectionLimit: 25,
+    connectionLimit: 10, // Réduit pour Vercel
     waitForConnections: true,
-    queueLimit: 50,
-    connectTimeout: 2000
+    queueLimit: 0,
+    connectTimeout: 60000, // 60 secondes pour Railway
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 0
   };
-  
-  const pool = await mysql.createPool(dbConfig);
-  fastify.decorate("mysql", pool);
 
-  // Cookies & JWT
+  try {
+    const pool = await mysql.createPool(dbConfig);
+    
+    // Test de connexion
+    const connection = await pool.getConnection();
+    await connection.ping();
+    connection.release();
+    console.log("✅ Connexion MySQL établie avec succès");
+    
+    fastify.decorate("mysql", pool);
+  } catch (error) {
+    console.error("❌ Erreur de connexion MySQL:", error);
+    console.error("Config utilisée:", {
+      host: dbConfig.host,
+      port: dbConfig.port,
+      user: dbConfig.user,
+      database: dbConfig.database
+    });
+    throw error;
+  }
+
+  // Cookies & JWT - Configuration pour cross-origin
   await fastify.register(cookie, {
-    secret: process.env.COOKIE_SECRET,
+    secret: process.env.COOKIE_SECRET || "default-secret-change-in-production",
     parseOptions: {
       httpOnly: true,
-      secure: false, // HTTPS en production
-      sameSite: 'none', // 'none' pour cross-origin en prod
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       path: '/'
     }
   });
   
-  fastify.decorate("jwtSecret", process.env.JWT_SECRET);
+  fastify.decorate("jwtSecret", process.env.JWT_SECRET || "default-jwt-secret-change-in-production");
 
   // Rate limiter
   fastify.addHook("onRequest", rateLimit);
@@ -93,26 +95,48 @@ const init = async () => {
   const passwordResetServiceInstance = new PasswordResetService(fastify);
   const passwordResetControllerInstance = new PasswordResetController(fastify);
   const matchServiceInstance = new MatchService(fastify);
-  
+
   fastify.decorate("userService", userServiceInstance);
   fastify.decorate("tournamentService", tournamentServiceInstance);
   fastify.decorate("passwordResetService", passwordResetServiceInstance);
   fastify.decorate("passwordResetController", passwordResetControllerInstance);
   fastify.decorate("matchService", matchServiceInstance);
-  
+
   await passwordResetServiceInstance.initialize();
 
-  // Routes
+  // Routes de test
+  fastify.get('/api/health', async (request, reply) => {
+    return { 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development'
+    };
+  });
+
+  fastify.get('/api/db-test', async (request, reply) => {
+    try {
+      const [rows] = await fastify.mysql.query('SELECT 1 as test');
+      return { 
+        status: 'ok', 
+        database: 'connected',
+        result: rows[0],
+        timestamp: new Date().toISOString() 
+      };
+    } catch (error) {
+      reply.code(500).send({ 
+        status: 'error', 
+        message: 'Database connection failed',
+        error: error.message 
+      });
+    }
+  });
+
+  // Routes principales
   fastify.register(userRoutes);
   fastify.register(gradeRoutes);
   fastify.register(clubRoutes);
   fastify.register(passwordResetRoutes);
   fastify.register(importRoutes);
-
-  // Route de santé pour vérifier que l'API fonctionne
-  fastify.get('/api/health', async (request, reply) => {
-    return { status: 'ok', timestamp: new Date().toISOString() };
-  });
 
   isReady = true;
 };
@@ -120,25 +144,36 @@ const init = async () => {
 // Vercel serverless handler
 module.exports = async (req, res) => {
   try {
-    await init();
-    await fastify.ready();
-    
-    // Pour les requêtes OPTIONS (preflight), répondre rapidement
+    // Gestion spéciale pour les requêtes OPTIONS (preflight CORS)
     if (req.method === 'OPTIONS') {
       res.statusCode = 204;
       res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
       res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Access-Control-Max-Age', '86400');
       res.end();
       return;
     }
+
+    await init();
+    await fastify.ready();
+    
+    // Ajouter les headers CORS à toutes les réponses
+    const origin = req.headers.origin || '*';
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
     
     fastify.server.emit("request", req, res);
   } catch (err) {
     console.error("Fastify error:", err);
     res.statusCode = 500;
     res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ error: "Internal Server Error", message: err.message }));
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.end(JSON.stringify({ 
+      error: "Internal Server Error", 
+      message: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    }));
   }
 };
