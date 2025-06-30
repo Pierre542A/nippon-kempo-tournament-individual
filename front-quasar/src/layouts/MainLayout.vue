@@ -13,7 +13,7 @@
     <q-drawer v-model="leftDrawerOpen" show-if-above bordered>
       <q-list>
         <router-link to="/">
-          <q-img src="/src/assets/logo.png" alt="Logo" loading="eager" style="cursor:pointer;" />
+          <q-img src="/assets/logo.png" alt="Logo" loading="eager" style="cursor:pointer;" />
         </router-link>
 
         <!-- User section -->
