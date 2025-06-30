@@ -1,3 +1,4 @@
+// api/index.js
 const fastify = require("fastify")({ logger: true });
 const mysql = require("mysql2/promise");
 require("dotenv").config();
@@ -18,21 +19,12 @@ const clubRoutes = require("../routes/clubRoutes");
 const passwordResetRoutes = require("../routes/passwordReset");
 const importRoutes = require("../routes/importRoutes");
 
-const cors = require("@fastify/cors");
 const cookie = require("@fastify/cookie");
 
 let isReady = false;
 
 const init = async () => {
   if (isReady) return;
-
-  // CORS
-  await fastify.register(cors, {
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization"]
-  });
 
   // MySQL
   const dbConfig = {
@@ -74,7 +66,7 @@ const init = async () => {
 
   await passwordResetServiceInstance.initialize();
 
-  // Routes
+  // Routes (attention : pas de préfixe '/api')
   fastify.register(userRoutes);
   fastify.register(gradeRoutes);
   fastify.register(clubRoutes);
