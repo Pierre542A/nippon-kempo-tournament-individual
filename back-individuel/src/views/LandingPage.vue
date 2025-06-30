@@ -7,10 +7,6 @@
         <img src="@/assets/img/icone-no-wifi.png" alt="Hors-ligne" class="tab-icon" />
         Création de tournoi hors-ligne
       </button>
-      <button class="tab-button" :class="{ active: activeTab === 'online' }" @click="activeTab = 'online'">
-        <img src="@/assets/img/icone-wifi.png" alt="En-ligne" class="tab-icon" />
-        Gestion de club en-ligne
-      </button>
     </div>
 
     <div class="tab-content">
@@ -23,7 +19,6 @@
 <script setup>
 import { ref } from "vue";
 import LoginPage from "./offline/LoginPage.vue";
-import LoginClubPage from "./online/LoginCLubPage.vue";
 
 const activeTab = ref("offline");
 </script>

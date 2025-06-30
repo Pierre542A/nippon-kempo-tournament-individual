@@ -106,7 +106,7 @@ class UserService {
         WHERE ? IN (id_users_white, id_users_red)`,
         [userId, userId, userId, userId, userId]
       );
-      
+
       // Transformer les valeurs NULL en 0
       const stats = rows[0];
       for (const key in stats) {
@@ -114,7 +114,7 @@ class UserService {
           stats[key] = 0;
         }
       }
-      
+
       return stats;
     } catch (error) {
       console.error('Erreur SQL getUserStats :', error);
@@ -128,20 +128,20 @@ class UserService {
         `SELECT id FROM users WHERE email = ?`,
         [userData.email]
       );
-  
+
       if (rows.length > 0) {
         throw new Error("Cette adresse email est déjà utilisée.");
       }
-  
+
       // Adaptation : utiliser password ou user_password selon ce qui est disponible
       const password = userData.user_password || userData.password;
       if (!password) {
         throw new Error("Le mot de passe est obligatoire");
       }
-      
+
       // Formater la date de naissance pour n'avoir que la date (sans heure)
       const formattedBirthDate = this.formatDateOnly(userData.birth_date);
-  
+
       const [result] = await this.mysql.execute(
         `INSERT INTO users
           (first_name, last_name, email, password, birth_date, weight, phone, nationality, id_gender, id_grade, id_club, id_role, created_at, is_active, avatar_seed)
@@ -162,7 +162,7 @@ class UserService {
           userData.avatar_seed || 'default'
         ]
       );
-  
+
       return { id: result.insertId };
     } catch (error) {
       throw new Error('Erreur création utilisateur : ' + error.message);
@@ -177,11 +177,11 @@ class UserService {
          WHERE id = ?`,
         [userId]
       );
-      
+
       if (result.affectedRows === 0) {
         throw new Error("Utilisateur non trouvé");
       }
-      
+
       return true;
     } catch (error) {
       throw new Error(`Erreur lors de l'annulation de l'inscription: ${error.message}`);
@@ -215,12 +215,12 @@ class UserService {
         LEFT JOIN clubs c ON u.id_club = c.id
         ORDER BY u.id`
       );
-      
+
       // Supprimer les mots de passe pour sécurité
       rows.forEach(user => {
         delete user.password;
       });
-      
+
       return rows;
     } catch (error) {
       console.error('🛑 createUser error:', error);
@@ -228,27 +228,25 @@ class UserService {
       throw new Error(`Erreur lors de la récupération des utilisateurs: ${error.message}`);
     }
   }
-  
+
   // Méthode pour mettre à jour les informations d'un utilisateur (utilisée par les admins)
   async updateUserInfo(userId, updateData) {
     try {
-      console.log('Données reçues pour la mise à jour :', JSON.stringify(updateData, null, 2));
-      
       // Vérifier que l'utilisateur existe
       const [userExists] = await this.mysql.execute(
         `SELECT id, email FROM users WHERE id = ?`,
         [userId]
       );
-      
+
       if (userExists.length === 0) {
         throw new Error("Utilisateur non trouvé");
       }
-      
+
       // Formater la date de naissance (si présente) pour n'avoir que la date (sans heure)
       if (updateData.birth_date) {
         updateData.birth_date = this.formatDateOnly(updateData.birth_date);
       }
-      
+
       // Validation de l'email
       if (updateData.email) {
         // Regex pour validation email
@@ -256,20 +254,20 @@ class UserService {
         if (!emailRegex.test(updateData.email)) {
           throw new Error("Format d'adresse email invalide");
         }
-        
+
         // Vérifier si l'email est déjà utilisé par un autre utilisateur
         if (updateData.email !== userExists[0].email) {
           const [emailExists] = await this.mysql.execute(
             `SELECT id FROM users WHERE email = ? AND id != ?`,
             [updateData.email, userId]
           );
-          
+
           if (emailExists.length > 0) {
             throw new Error("Cette adresse email est déjà utilisée par un autre compte");
           }
         }
       }
-      
+
       // Validation du numéro de téléphone (si fourni)
       if (updateData.phone) {
         // Regex pour numéro de téléphone international
@@ -278,7 +276,7 @@ class UserService {
           throw new Error("Format de numéro de téléphone invalide");
         }
       }
-      
+
       // Validation du poids (si fourni)
       if (updateData.weight !== undefined) {
         const weight = parseFloat(updateData.weight);
@@ -289,26 +287,26 @@ class UserService {
           throw new Error("Le poids doit être compris entre 0 et 250 kg");
         }
       }
-      
+
       // Validation de la date de naissance (si fournie)
       if (updateData.birth_date) {
         const birthDate = new Date(updateData.birth_date);
         if (isNaN(birthDate.getTime())) {
           throw new Error("Format de date de naissance invalide");
         }
-        
+
         // Vérifier que la date n'est pas dans le futur
         if (birthDate > new Date()) {
           throw new Error("La date de naissance ne peut pas être dans le futur");
         }
-        
+
         // Vérifier l'âge minimum (par exemple 10 ans)
         const minAgeDate = new Date();
         minAgeDate.setFullYear(minAgeDate.getFullYear() - 10);
         if (birthDate > minAgeDate) {
           throw new Error("L'âge minimum est de 10 ans");
         }
-        
+
         // Vérifier l'âge maximum (par exemple 120 ans)
         const maxAgeDate = new Date();
         maxAgeDate.setFullYear(maxAgeDate.getFullYear() - 120);
@@ -316,49 +314,44 @@ class UserService {
           throw new Error("L'âge maximum est de 120 ans");
         }
       }
-      
+
       // Filtrer les champs autorisés
       const allowedFields = [
-        'first_name', 'last_name', 'email', 'phone', 
-        'birth_date', 'weight', 'nationality', 
+        'first_name', 'last_name', 'email', 'phone',
+        'birth_date', 'weight', 'nationality',
         'id_grade', 'id_club', 'id_role', 'is_active', 'id_tournament_waiting',
         'avatar_seed', 'password', 'id_gender' // Ajout de id_gender à la liste
       ];
-      
+
       const filteredData = {};
       for (const field of allowedFields) {
         if (updateData[field] !== undefined) {
           filteredData[field] = updateData[field];
         }
       }
-      
+
       // S'il n'y a pas de champs à mettre à jour, retourner
       if (Object.keys(filteredData).length === 0) {
         return { message: "Aucune modification à effectuer" };
       }
-      
+
       // Construire la requête de mise à jour
       const setClause = Object.keys(filteredData)
         .map(key => `${key} = ?`)
         .join(', ');
-      
+
       const values = [...Object.values(filteredData), userId];
-      
-      console.log('Requête SQL:', `UPDATE users SET ${setClause} WHERE id = ?`);
-      console.log('Valeurs:', values);
-      
+
       const [result] = await this.mysql.execute(
         `UPDATE users SET ${setClause} WHERE id = ?`,
         values
       );
-      
-      console.log('Résultat de la mise à jour:', result);
-      
+
       if (result.affectedRows === 0) {
         throw new Error("La mise à jour a échoué");
       }
-      
-      return { 
+
+      return {
         success: true,
         message: "Utilisateur mis à jour avec succès",
         updatedFields: Object.keys(filteredData)
@@ -369,7 +362,7 @@ class UserService {
       throw error;
     }
   }
-  
+
   async confirmUserEmail(user_id) {
     try {
       const [result] = await this.mysql.execute(
@@ -382,7 +375,7 @@ class UserService {
     } catch (error) {
       throw new Error(`Erreur lors de la confirmation de l'email: ${error.message}`);
     }
-  }  
+  }
 
   async updateUser(user_id, data) {
     try {
@@ -390,11 +383,11 @@ class UserService {
         `SELECT user_id, user_email FROM users WHERE user_id = ?`,
         [user_id]
       );
-  
+
       if (existingUser.length === 0) {
         throw new Error("Utilisateur non trouvé");
       }
-  
+
       const sanitizedData = { ...data };
       const protectedFields = [
         "user_role_id",
@@ -404,11 +397,11 @@ class UserService {
         "user_email_confirmed",
         "user_id"
       ];
-  
+
       protectedFields.forEach((field) => {
         delete sanitizedData[field];
       });
-  
+
       if (sanitizedData.user_age !== undefined) {
         let userAge = parseInt(sanitizedData.user_age, 10);
         if (isNaN(userAge)) {
@@ -422,58 +415,77 @@ class UserService {
         }
         sanitizedData.user_age = userAge;
       }
-  
+
       if (sanitizedData.user_sex !== undefined) {
         const validSexValues = ["M", "F", "Other"];
         if (!validSexValues.includes(sanitizedData.user_sex)) {
           throw new Error("Le sexe doit être 'M', 'F', ou 'Other'.");
         }
       }
-  
+
       if (sanitizedData.user_email) {
         const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
         if (!emailRegex.test(sanitizedData.user_email)) {
           throw new Error("L'adresse email n'est pas valide.");
         }
-  
+
         const [emailUser] = await this.mysql.execute(
           `SELECT user_id FROM users WHERE user_email = ? AND user_id != ?`,
           [sanitizedData.user_email, user_id]
         );
-  
+
         if (emailUser.length > 0) {
           throw new Error("Cette adresse email est déjà utilisée par un autre utilisateur.");
         }
-  
+
         if (sanitizedData.user_email !== existingUser[0].user_email) {
           sanitizedData.user_email_confirmed = 0;
         }
       }
-  
+
       if (sanitizedData.user_newsletter !== undefined) {
         sanitizedData.user_newsletter = sanitizedData.user_newsletter ? 1 : 0;
       }
-  
+
       // Mise à jour en base
       const updateQuery = Object.keys(sanitizedData)
         .map((key) => `${key} = ?`)
         .join(", ");
       const values = Object.values(sanitizedData);
-  
+
       const [result] = await this.mysql.execute(
         `UPDATE users SET ${updateQuery} WHERE user_id = ?`,
         [...values, user_id]
       );
-  
+
       if (result.affectedRows === 0) {
         throw new Error("La mise à jour a échoué");
       }
-  
+
       return {
         message: "Utilisateur mis à jour avec succès",
       };
     } catch (error) {
       throw new Error(`Erreur lors de la mise à jour de l'utilisateur: ${error.message}`);
+    }
+  }
+
+  async getWaitingParticipantsByTournament(tournamentId) {
+    try {
+      const [rows] = await this.mysql.execute(
+        `SELECT 
+                u.id, u.first_name, u.last_name, u.birth_date, u.email, u.weight, u.id_gender, u.id_grade,
+                u.nationality, c.name as club_name
+            FROM users u
+            LEFT JOIN clubs c ON u.id_club = c.id
+            WHERE u.id_tournament_waiting = ?`,
+        [tournamentId]
+      );
+
+      return rows;
+    } catch (error) {
+      console.error('Erreur SQL getWaitingParticipantsByTournament:', error);
+      throw new Error(`Erreur lors de la récupération des participants en attente: ${error.message}`);
     }
   }
 

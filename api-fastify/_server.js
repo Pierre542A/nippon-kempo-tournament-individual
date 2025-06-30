@@ -16,6 +16,7 @@ const userRoutes = require("./routes/userRoutes");
 const gradeRoutes = require("./routes/gradeRoutes");
 const clubRoutes = require("./routes/clubRoutes");
 const passwordResetRoutes = require("./routes/passwordReset");
+const importRoutes = require("./routes/importRoutes");
 
 // Configuration CORS
 fastify.register(require("@fastify/cors"), {
@@ -114,10 +115,8 @@ const start = async () => {
     // Initialisation de la connexion pour le service de réinitialisation
     try {
       await passwordResetServiceInstance.initialize();
-      console.log("Connexion à la base de données OK pour le service de réinitialisation de mot de passe");
-      fastify.log.info("Service de réinitialisation de mot de passe initialisé avec succès");
     } catch (error) {
-      fastify.log.error("Erreur lors de l'initialisation du service de réinitialisation:", error);
+      fastify.log.error("Erreur lors de l'initialisation du service", error);
     }
 
     // Enregistrement des routes
@@ -125,6 +124,7 @@ const start = async () => {
     fastify.register(gradeRoutes);
     fastify.register(clubRoutes);
     fastify.register(passwordResetRoutes);
+    fastify.register(importRoutes);
 
     // Démarrage du serveur
     await fastify.listen({ port: 3000, host: "0.0.0.0" });

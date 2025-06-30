@@ -7,7 +7,6 @@ import MatchScoreboardPage from '../views/offline/MatchScoreboardPage.vue';
 import MatchScoreboardFictifPage from '@/views/offline/MatchScoreboardFictifPage.vue';
 import MatchScoreboardFictifAdminPage from '@/views/offline/MatchScoreboardFictifAdminPage.vue';
 import LandingPage from '@/views/LandingPage.vue';
-import HomeClubPage from '@/views/online/HomeClubPage.vue';
 import { isAuthenticated } from '@/utils/auth';
 
 const router = createRouter({
@@ -51,12 +50,6 @@ const router = createRouter({
       path: '/fictive-display',
       component: MatchScoreboardFictifPage,
       meta: { requiresAuth: true } // nécessite authentification - partie hors ligne
-    },
-
-
-    {
-      path: '/home-club',
-      component: HomeClubPage,
     }
   ],
 });

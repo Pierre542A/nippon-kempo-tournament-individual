@@ -136,9 +136,8 @@
                                 </template>
 
                                 <template #cell(birthDate)="{ row }">
-                                    <span :class="getCellClass('birthDate', row)"
-                                        :title="getCellTitle('birthDate', row)">
-                                        {{ row.source.birthDate }}
+                                    <span :class="getCellClass('birthDate', row)" :title="getCellTitle('birthDate', row)">
+                                        {{ row.source.formattedBirthDate || row.source.birthDate }}
                                     </span>
                                 </template>
 
@@ -285,12 +284,24 @@ const validateParticipantsCount = () => {
 const getCellClass = (columnKey, row) => {
     const participant = row.source;
 
-    // verif le genre
-    if (columnKey === "gender" && form.value.genderId && participant.genderId !== form.value.genderId.value && form.value.genderId.value !== 3) {
-        return "non-matching-cell";
+    // Normalisation des données participant pour la comparaison
+    const participantGenderId = typeof participant.genderId === 'object' 
+        ? participant.genderId.value 
+        : Number(participant.genderId);
+    
+    const participantGradeId = typeof participant.gradeId === 'object' 
+        ? participant.gradeId.value 
+        : Number(participant.gradeId);
+
+    // Vérification du genre
+    if (columnKey === "gender" && form.value.genderId) {
+        const formGenderId = form.value.genderId.value || form.value.genderId;
+        if (participantGenderId !== formGenderId && formGenderId !== 3) {
+            return "non-matching-cell";
+        }
     }
 
-    // verif l'âge
+    // Vérification de l'âge
     if (columnKey === "birthDate" && form.value.ageCategoryIds.length > 0) {
         const age = calculateAge(participant.birthDate);
         const isAgeMatching = form.value.ageCategoryIds.some(ageCat => {
@@ -302,15 +313,17 @@ const getCellClass = (columnKey, row) => {
         }
     }
 
-    // verif le grade
+    // Vérification du grade
     if (columnKey === "grade" && form.value.minGradeId && form.value.maxGradeId) {
-        const participantGrade = participant.gradeId;
-        if (participantGrade < form.value.minGradeId.value || participantGrade > form.value.maxGradeId.value) {
+        const minGradeId = form.value.minGradeId.value || form.value.minGradeId;
+        const maxGradeId = form.value.maxGradeId.value || form.value.maxGradeId;
+        
+        if (participantGradeId < minGradeId || participantGradeId > maxGradeId) {
             return "non-matching-cell";
         }
     }
 
-    // verif poidss
+    // Vérification du poids
     if (columnKey === "weight" && form.value.weightRange) {
         const [minWeight, maxWeight] = form.value.weightRange;
         const participantWeight = participant.weight;
@@ -457,21 +470,34 @@ const filteredParticipants = computed(() => {
 
     if (filterByCriteria.value) {
         participants = participants.filter(p => {
-            // verif de l'âge
+            // Normalisation des IDs pour la comparaison
+            const participantGenderId = typeof p.genderId === 'object' 
+                ? p.genderId.value 
+                : Number(p.genderId);
+            
+            const participantGradeId = typeof p.gradeId === 'object' 
+                ? p.gradeId.value 
+                : Number(p.gradeId);
+                
+            // Vérification de l'âge
             const isAgeMatching = form.value.ageCategoryIds.length === 0 || form.value.ageCategoryIds.some(ageCat => {
                 const category = categoriesAge.find(cat => cat.id == ageCat);
                 const age = calculateAge(p.birthDate);
                 return category && age >= category.ageMin && age <= category.ageMax;
             });
 
-            // verif du genre
-            const isGenderMatching = !form.value.genderId || p.genderId === form.value.genderId.value || form.value.genderId.value === 3;
+            // Vérification du genre
+            const formGenderId = form.value.genderId ? (form.value.genderId.value || form.value.genderId) : null;
+            const isGenderMatching = !formGenderId || participantGenderId === formGenderId || formGenderId === 3;
 
-            // verif du grade
-            const isGradeMatching = !form.value.minGradeId || !form.value.maxGradeId ||
-                (p.gradeId >= form.value.minGradeId.value && p.gradeId <= form.value.maxGradeId.value);
+            // Vérification du grade
+            const minGradeId = form.value.minGradeId ? (form.value.minGradeId.value || form.value.minGradeId) : null;
+            const maxGradeId = form.value.maxGradeId ? (form.value.maxGradeId.value || form.value.maxGradeId) : null;
+            
+            const isGradeMatching = !minGradeId || !maxGradeId ||
+                (participantGradeId >= minGradeId && participantGradeId <= maxGradeId);
 
-            // verif du poids
+            // Vérification du poids
             const isWeightMatching = !form.value.weightRange ||
                 (p.weight >= form.value.weightRange[0] &&
                     (form.value.weightRange[1] === 150 ? p.weight <= 150 : p.weight <= form.value.weightRange[1]));
@@ -629,8 +655,25 @@ watch(
 
 // calcul l'age d'un participant avec sa date de naissance
 const calculateAge = (birthDate) => {
+    if (!birthDate) return 0;
+    
     const today = new Date();
-    const birth = new Date(birthDate);
+    let birth;
+    
+    // Gestion de différents formats de dates
+    if (birthDate instanceof Date) {
+        birth = birthDate;
+    } else if (typeof birthDate === 'string') {
+        // Nettoyer la partie temporelle si présente
+        const cleanDate = birthDate.includes('T') ? birthDate.split('T')[0] : birthDate;
+        birth = new Date(cleanDate);
+    } else {
+        return 0; // Retourne 0 si la date n'est pas reconnue
+    }
+    
+    // Vérifier si la date est valide
+    if (isNaN(birth.getTime())) return 0;
+    
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {

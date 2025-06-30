@@ -107,8 +107,6 @@ class ClubController {
 
     /* ──────────────────────────── UPDATE / DISABLE ─────────────────── */
     async updateClub(req, reply) {
-        console.log('req.body:', JSON.stringify(req.body, null, 2)); // Log pour debug
-
         try {
             // Récupérer les données actuelles du club
             const [currentClub] = await this.mysql.execute(
@@ -190,8 +188,6 @@ class ClubController {
                 clubData.is_active !== undefined ? !!clubData.is_active : true,
                 req.params.id
             ];
-
-            console.log('SQL parameters:', params); // Log pour debug
 
             // Effectuer la mise à jour
             await this.mysql.execute(

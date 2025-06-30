@@ -12,7 +12,6 @@ class PasswordResetService {
         // Vérification simple de la connexion à la base de données
         try {
             await this.mysql.execute("SELECT 1");
-            console.log("Connexion à la base de données OK pour le service de réinitialisation de mot de passe");
             return true;
         } catch (error) {
             console.error("Erreur de connexion à la base de données:", error);
@@ -44,26 +43,19 @@ class PasswordResetService {
     async verifyToken(token) {
         try {
             // Vérifier si le token existe et est associé à un utilisateur
-            console.log("Vérification du token dans la base de données:", token.substring(0, 10) + "...");
             const [rows] = await this.mysql.execute(
                 `SELECT id FROM users WHERE reset_token = ? AND is_active = TRUE`,
                 [token]
             );
 
-            console.log("Résultat de la requête SQL:", rows);
-
             if (rows.length === 0) {
-                console.log("Token non trouvé dans la base de données");
                 return false;
             }
 
             // Vérifier la validité du JWT
             try {
-                console.log("Vérification de la validité JWT avec le secret");
                 const decoded = jwt.verify(token, this.jwtSecret);
-                console.log("Token décodé:", decoded);
                 const isValid = decoded.purpose === "password_reset";
-                console.log("Le token est valide pour la réinitialisation:", isValid);
                 return isValid;
             } catch (jwtError) {
                 console.error("Erreur JWT détaillée:", jwtError.name, jwtError.message);

@@ -4,6 +4,9 @@
     <div class="header-container">
       <VaButton @click="goToHomePage" class="home-button" color="primary"> ⬅ Accueil </VaButton>
       <div class="page-title">Paramétrage du Tournoi</div>
+      <VaButton @click="handleExportTournament" class="export-button" color="primary" icon="call_made">
+        Exporter le tournoi en JSON
+      </VaButton>
     </div>
 
     <!-- tabs pour basculer entre Participants et Catégories -->
@@ -18,6 +21,12 @@
     <div class="content-container">
       <!-- participants -->
       <div v-if="activeTab === 'participants'" class="participant-section">
+        <div class="participant-actions">
+          <VaButton @click="loadWaitingParticipants" color="primary" class="waiting-participants-button">
+            <VaIcon name="people" />
+            Importer participants en attente
+          </VaButton>
+        </div>
         <ParticipantList :participants="formattedParticipants" @edit="handleEditParticipant"
           @create="handleOpenParticipantModal" @delete="handleDeleteParticipant"
           @import-participant="handleImportedParticipants" />
@@ -113,6 +122,132 @@ import {
 } from "../../replicache/models/constants";
 import { useToast } from "vuestic-ui";
 import { useCountryFlags } from "@/utils/countryFlags";
+import { replicacheInstance as rep } from "@/replicache/replicache";
+
+// Dans TournamentEditPage.vue
+const loadWaitingParticipants = async () => {
+  try {
+    const API_URL = "http://localhost:3000";
+
+    // Récupérer d'abord les informations du tournoi pour obtenir son ID numérique
+    const tournamentResponse = await fetch(`${API_URL}/tournaments`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include'
+    });
+
+    if (!tournamentResponse.ok) {
+      throw new Error("Impossible de récupérer la liste des tournois");
+    }
+
+    // Récupérer la liste des tournois et chercher l'ID numérique
+    const tournaments = await tournamentResponse.json();
+
+    // Trouver le tournoi qui correspond à votre tournoi actuel (par nom ou autre identifiant)
+    const tournamentDetails = await rep.query(async (tx) => {
+      return await tx.get(`tournament/${tournamentId.value}`);
+    });
+
+    // Chercher le tournoi correspondant dans la liste des tournois de l'API
+    const matchingTournament = tournaments.find(t => t.name === tournamentDetails.name);
+
+    if (!matchingTournament) {
+      toast.init({
+        message: "Impossible de trouver l'ID du tournoi dans le système",
+        color: "warning",
+        position: "top-center"
+      });
+      return;
+    }
+
+    // Maintenant, utiliser l'ID numérique pour récupérer les participants en attente
+    const response = await fetch(`${API_URL}/tournaments/${matchingTournament.id}/waiting-participants`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include'
+    });
+
+    // Gérer les différents codes d'erreur possibles
+    if (response.status === 403) {
+      toast.init({
+        message: "Vous n'avez pas les droits pour accéder aux participants en attente",
+        color: "warning",
+        position: "top-center"
+      });
+      return;
+    }
+
+    if (response.status === 404) {
+      toast.init({
+        message: "Ce tournoi n'existe pas ou n'est pas accessible",
+        color: "warning",
+        position: "top-center"
+      });
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error("Erreur lors de la récupération des participants en attente");
+    }
+
+    const waitingUsers = await response.json();
+
+    if (!waitingUsers || waitingUsers.length === 0) {
+      toast.init({
+        message: "Aucun participant en attente trouvé pour ce tournoi",
+        color: "info",
+        position: "top-center"
+      });
+      return;
+    }
+
+    // Convertir les données au format attendu par la modal
+    // Dans la fonction loadWaitingParticipants, modifiez la partie où vous formattez les participants:
+
+    // Convertir les données au format attendu par la modal
+    const formattedParticipants = waitingUsers.map(user => {
+      // Formater la date de naissance correctement - la simplifier sans la partie heure
+      let birthDate = user.birth_date;
+      if (birthDate && birthDate.includes('T')) {
+        birthDate = birthDate.split('T')[0];
+      }
+
+      // S'assurer que genderId est un nombre valide
+      const genderId = user.id_gender ? Number(user.id_gender) : 1; // 1 par défaut si indéfini
+
+      // S'assurer que gradeId est un nombre valide
+      const gradeId = user.id_grade ? Number(user.id_grade) : 1; // 1 par défaut si indéfini
+
+      return {
+        firstName: user.first_name,
+        lastName: user.last_name,
+        birthDate: birthDate,
+        email: user.email,
+        clubName: user.club_name || "",
+        weight: user.weight || 0,
+        nationalityId: user.nationality || 73,
+        genderId: genderId,
+        gradeId: gradeId,
+        id: `waiting-${user.id}` // Cet ID indique que c'est un participant en attente
+      };
+    });
+
+    // Ouvrir la modal avec les données
+    importedParticipants.value = formattedParticipants;
+    showImportModal.value = true;
+  } catch (error) {
+    console.error("Erreur détaillée:", error);
+    toast.init({
+      message: "Un problème est survenu lors de la récupération des participants",
+      color: "warning",
+      position: "top-center"
+    });
+  }
+};
 
 // init vuestic toast
 const toast = useToast();
@@ -212,9 +347,34 @@ const confirmImport = async (selectedItems) => {
     }
 
     const p = selectedItems[index];
+
+    // Gestion de l'ID pour participants en attente
+    let isNewParticipant = true;
+    if (p.id && typeof p.id === 'string' && p.id.startsWith('waiting-')) {
+      delete p.id; // On va créer plutôt que mettre à jour
+    } else {
+      isNewParticipant = false;
+    }
+
+    // Normalisation de la date de naissance
+    let birthDate = null;
+    if (p.birthDate) {
+      // Si la date contient un 'T', c'est probablement un format ISO
+      if (typeof p.birthDate === 'string' && p.birthDate.includes('T')) {
+        birthDate = new Date(p.birthDate.split('T')[0]);
+      } else {
+        birthDate = new Date(p.birthDate);
+      }
+
+      // Vérifier si la date est valide
+      if (isNaN(birthDate)) {
+        birthDate = null;
+      }
+    }
+
     const formattedParticipant = {
       ...p,
-      birthDate: p.birthDate && !isNaN(new Date(p.birthDate)) ? new Date(p.birthDate) : null,
+      birthDate: birthDate,
       genderId: {
         text: genders.find((g) => g.id === Number(p.genderId))?.nom || "Inconnu",
         value: Number(p.genderId),
@@ -226,9 +386,14 @@ const confirmImport = async (selectedItems) => {
     };
 
     try {
-      await handleSaveParticipant(formattedParticipant, true);
+      if (isNewParticipant) {
+        await ParticipantService.createParticipant(tournamentId.value, formattedParticipant);
+      } else {
+        await handleSaveParticipant(formattedParticipant, true);
+      }
       successCount++;
     } catch (error) {
+      console.error("Erreur lors de l'importation:", error);
       toast.init({
         message: `${p.firstName} ${p.lastName} impossible à importer`,
         color: "danger",
@@ -269,12 +434,46 @@ onMounted(async () => {
 });
 
 // formate participants
+// Modifier la partie formattedParticipants pour ajouter une vérification supplémentaire sur le genre
 const formattedParticipants = computed(() =>
-  participants.value.map((p) => ({
-    ...p,
-    gender: genders.find((g) => Number(g.id) === Number(p.genderId))?.nom || "Inconnu",
-    grade: grades.find((g) => Number(g.id) === Number(p.gradeId))?.nom || "Inconnu",
-  }))
+  participants.value.map((p) => {
+    // Vérifier si la date de naissance est une chaîne ou une date
+    let formattedBirthDate = "N/A";
+    if (p.birthDate) {
+      if (p.birthDate instanceof Date) {
+        formattedBirthDate = p.birthDate.toLocaleDateString('fr-FR');
+      } else if (typeof p.birthDate === 'string') {
+        // Nettoyer la date si elle contient une partie temporelle (T...)
+        const cleanDate = p.birthDate.split('T')[0];
+        formattedBirthDate = new Date(cleanDate).toLocaleDateString('fr-FR');
+      }
+    }
+
+    // Correction pour le problème de genre - assurons-nous que genderId est un nombre
+    let genderId = typeof p.genderId === 'object' ? p.genderId.value : Number(p.genderId);
+    // Valeur par défaut si le genre n'est pas valide
+    if (isNaN(genderId) || genderId === null || genderId === undefined) {
+      genderId = 1; // Par défaut, mettre à "Homme" (ou la valeur par défaut de votre système)
+    }
+
+    // Recherche du genre avec la valeur corrigée
+    const gender = genders.find(g => Number(g.id) === Number(genderId))?.nom || "Inconnu";
+
+    // Correction similaire pour le grade
+    let gradeId = typeof p.gradeId === 'object' ? p.gradeId.value : Number(p.gradeId);
+    if (isNaN(gradeId) || gradeId === null || gradeId === undefined) {
+      gradeId = 1; // Grade par défaut
+    }
+    const grade = grades.find(g => Number(g.id) === Number(gradeId))?.nom || "Inconnu";
+
+    // Retourner l'objet participant formaté
+    return {
+      ...p,
+      gender,
+      grade,
+      formattedBirthDate,
+    };
+  })
 );
 
 // formate categories
@@ -537,10 +736,123 @@ const confirmTournamentValidation = async () => {
     });
   }
 };
+
+const handleExportTournament = async () => {
+  try {
+    // Récupérer les infos du tournoi
+    const tournamentDetails = await rep.query(async (tx) => {
+      return await tx.get(`tournament/${tournamentId.value}`);
+    });
+
+    if (!tournamentDetails) {
+      toast.init({ message: "Impossible de trouver les détails du tournoi", color: "error", position: 'top-center' });
+      return;
+    }
+
+    // 1) On lit tout le store des données stockées dans replicache
+    const scanResults = await rep.query(async tx => {
+      const entries = [];
+      for await (const [key, value] of tx.scan().entries()) {
+        entries.push({ key, value });
+      }
+      return entries;
+    });
+
+    // 2) On prépare l'objet d'export et sa structure
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const formattedDate =
+      `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ` +
+      `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+    const exportData = {
+      metadata: {
+        exportedAt: `${formattedDate}`,
+        tournamentId: tournamentId.value,
+        status: "draft" // Indique que c'est une version brouillon avant le début du tournoi
+      },
+      tournaments: [],
+      categories: [],
+      participants: [],
+      // Les sections suivantes seront vides car le tournoi n'a pas commencé
+      matches: [],
+      brackets: [],
+      poolManagers: [],
+      poules: [],
+      rounds: []
+    };
+
+    // 3) On dispatche dans exportData selon le préfixe clé de replicache
+    scanResults.forEach(({ key, value }) => {
+      const [kind, tid, id] = key.split("/");
+      if (!kind) return;
+      const base = { tournamentId: tid, id, ...value };
+      switch (kind) {
+        case "tournament": exportData.tournaments.push({ id: tid, ...value }); break;
+        case "category": exportData.categories.push(base); break;
+        case "participant": exportData.participants.push(base); break;
+        // Les autres structures ne sont pas encore nécessaires ici
+      }
+    });
+
+    // 4) On filtre les participants vraiment inscrits
+    exportData.participants = exportData.participants
+      .filter(p => p.categoryId && p.categoryId !== -1);
+
+    // 5) On déclenche le téléchargement JSON
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${tournamentDetails.name} - Draft - ${formattedDate}.json`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+
+    toast.init({ message: "Export brouillon réalisé avec succès.", color: "success", position: 'top-center' });
+
+  } catch (err) {
+    console.error("Échec de l'export :", err);
+    toast.init({ message: `Erreur lors de l'export : ${err.message}`, color: "error", position: 'top-center' });
+  }
+};
 </script>
 
 
 <style scoped>
+.participant-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 15px;
+}
+
+.waiting-participants-button {
+  margin-right: 15px;
+  padding: 6px 12px;
+}
+
+.export-button {
+  margin-left: auto;
+  padding: 1px 2px;
+  font-size: 14px;
+  font-weight: bold;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.header-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 15px;
+}
+
 /* header contenant le bouton et le titre */
 .tournament-layout {
   display: flex;

@@ -273,8 +273,6 @@ class UserController {
       const userId = req.params.id;
       const updateData = req.body;
 
-      console.log('Données reçues pour mise à jour du profil :', JSON.stringify(updateData, null, 2));
-
       // Vérifier que l'utilisateur est admin ou agit sur son propre compte
       if (userId != req.user.id && req.user.role !== 1) {
         return reply.code(403).send({ error: "Non autorisé" });
@@ -292,8 +290,6 @@ class UserController {
         if (!isPasswordValid) {
           return reply.code(400).send({ error: "Mot de passe actuel incorrect" });
         }
-        // Le mot de passe actuel est correct, on peut continuer
-        console.log('Mot de passe vérifié avec succès');
 
         // Hasher le nouveau mot de passe
         const saltRounds = 12;
@@ -313,9 +309,7 @@ class UserController {
       try {
         // Effectuer la mise à jour
         const result = await this.userService.updateUserInfo(userId, updateData);
-
-        console.log('Résultat mise à jour profil :', result);
-
+        
         return reply.send({
           success: true,
           message: "Information utilisateur mise à jour avec succès"

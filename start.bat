@@ -9,14 +9,14 @@ echo ======================================================
 echo.
 
 :: Étape 1 - Arrêt des conteneurs et suppression forcée
-echo 🔴 [1/6] Arrêt et suppression des anciens conteneurs...
+echo 🔴 [1/5] Arrêt et suppression des anciens conteneurs...
 docker rm -f fastify-api front-quasar mysql-bdd phpmyadmin > nul 2>&1
 docker-compose down -v
 echo ✅ Conteneurs arrêtés et supprimés avec succès !
 echo.
 
 :: Étape 2 - Démarrage de la base de données
-echo 🔵 [2/6] Démarrage de la base de données MySQL...
+echo 🔵 [2/5] Démarrage de la base de données MySQL...
 docker-compose up -d mysql-bdd phpmyadmin
 if %errorlevel% neq 0 (
     echo ❌ Erreur lors du démarrage de la base de données !
@@ -27,7 +27,7 @@ echo ✅ Base de données démarrée avec succès !
 echo.
 
 :: Étape 3 - Construction et démarrage de l'API Fastify
-echo 🟢 [3/6] Construction et démarrage de l'API Fastify...
+echo 🟢 [3/5] Construction et démarrage de l'API Fastify...
 docker-compose up -d --build api-fastify
 if %errorlevel% neq 0 (
     echo ❌ Erreur lors du démarrage de l'API Fastify !
@@ -38,7 +38,7 @@ echo ✅ API Fastify lancée avec succès !
 echo.
 
 :: Étape 4 - Construction et démarrage du front Quasar
-echo 🟡 [4/6] Construction et démarrage du front Quasar...
+echo 🟡 [4/5] Construction et démarrage du front Quasar...
 docker-compose up -d --build front-quasar
 if %errorlevel% neq 0 (
     echo ❌ Erreur lors du démarrage du Front Quasar !
@@ -49,19 +49,8 @@ echo ✅ Front Quasar opérationnel !
 start http://localhost:8080
 echo.
 
-:: Étape 5 - Lancement de l'application Electron en local
-echo 🟣 [5/6] Lancement de l'application Electron en local...
-start cmd /c "cd back-individuel && npm i && npm run dev"
-if %errorlevel% neq 0 (
-    echo ❌ Erreur lors du démarrage de l'application Electron !
-    pause
-    exit /b
-)
-echo ✅ Application Electron en cours de démarrage !
-echo.
-
 :: Étape 6 - Vérification des conteneurs en cours d'exécution
-echo 🏗️  [6/6] Liste des conteneurs en cours d'exécution :
+echo 🏗️  [5/5] Liste des conteneurs en cours d'exécution :
 docker ps
 echo.
 

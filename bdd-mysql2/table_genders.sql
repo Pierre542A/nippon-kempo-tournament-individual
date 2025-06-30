@@ -12,4 +12,4 @@ INSERT INTO genders (
 ) VALUES
 ('Masculin'),
 ('Féminin'),
-('Ne pas préciser');
+('Mixte / Ne pas préciser');

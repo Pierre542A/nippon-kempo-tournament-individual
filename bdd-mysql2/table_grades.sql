@@ -11,5 +11,19 @@ INSERT INTO grades (
     name
 ) VALUES
 ('Ceinture Blanche'),
-('Ceinture Noire'),
-('Ceinture Rouge');
+('Ceinture Blanche-Jaune'),
+('Ceinture Jaune'),
+('Ceinture Jaune-Orange'),
+('Ceinture Orange'),
+('Ceinture Orange-Verte'),
+('Ceinture Verte'),
+('Ceinture Verte-Bleue'),
+('Ceinture Bleue'),
+('Ceinture Bleue-Marron'),
+('Ceinture Marron'),
+('Ceinture Noire 1ere Dan'),
+('Ceinture Noire 2eme Dan'),
+('Ceinture Noire 3eme Dan'),
+('Ceinture Noire 4eme Dan'),
+('Ceinture Noire 5eme Dan'),
+('Ceinture Noire 6eme Dan');

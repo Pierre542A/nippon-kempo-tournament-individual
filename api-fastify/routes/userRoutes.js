@@ -28,7 +28,13 @@ module.exports = async function (fastify) {
   fastify.get("/tournaments/:id", (req, reply) => tournamentController.getTournamentById(req, reply));
   fastify.get("/tournaments/:id/categories", (req, reply) => tournamentController.getCategoriesByTournamentId(req, reply));
   fastify.post("/tournaments/:id/register", { preHandler: verifyAuth }, (req, reply) => tournamentController.registerForTournament(req, reply));
-  
+  fastify.get("/tournaments/:id/waiting-participants", (req, reply) => tournamentController.getWaitingParticipants(req, reply));
+  fastify.post("/tournaments/:id/close", (req, reply) => tournamentController.closeTournament(req, reply));
+
+  fastify.get("/clubs/:id/tournaments", (req, reply) => tournamentController.getTournamentsByClubId(req, reply));
+  fastify.put("/tournaments/:id/toggle-active", { preHandler: verifyAuth }, (req, reply) => tournamentController.toggleTournamentActive(req, reply));
+
+
   // Routes administrateur
   fastify.get("/admin/users", { preHandler: verifyAuth }, (req, reply) => userController.getAllUsers(req, reply));
   

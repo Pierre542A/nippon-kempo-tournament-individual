@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "api-fastify/index.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api-fastify/index.js"
+    }
+  ]
+}

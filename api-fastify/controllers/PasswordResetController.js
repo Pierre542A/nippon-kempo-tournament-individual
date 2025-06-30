@@ -21,7 +21,6 @@ class PasswordResetController {
             // Si l'utilisateur n'existe pas, on renvoie quand même un succès pour des raisons de sécurité
             // (pour ne pas révéler quels emails sont enregistrés)
             if (!user || !user.is_active) {
-                console.log(`Tentative de réinitialisation pour un email non enregistré ou compte inactif: ${email}`);
                 return reply.send({
                     success: true,
                     message: "Si cet email existe dans notre base de données, un lien de réinitialisation a été envoyé."
@@ -82,8 +81,6 @@ class PasswordResetController {
                     error: "Token manquant"
                 });
             }
-
-            console.log("Vérification du token:", token.substring(0, 10) + "...");
 
             // Le reste de la méthode reste inchangé
             const isValid = await this.passwordResetService.verifyToken(token);
