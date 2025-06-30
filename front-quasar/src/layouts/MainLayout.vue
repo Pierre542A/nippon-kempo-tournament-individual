@@ -411,7 +411,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useUserStore } from '../stores/user'
-import axios from '@/config/api'
+import axios from '../config/api'  // <-- Chemin relatif au lieu de @/config/api
 
 const route             = useRoute()
 const router            = useRouter()
