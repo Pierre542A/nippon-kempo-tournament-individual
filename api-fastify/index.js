@@ -28,12 +28,7 @@ const init = async () => {
 
   // CORS
   await fastify.register(cors, {
-    origin: [
-      "https://nippon-kempo-tournament-individual.vercel.app",
-      "https://nippon-kempo-tournament-individual-h1liy2pox.vercel.app",
-      "http://localhost:8080",
-      "http://localhost:5173"
-    ],
+    origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"]
