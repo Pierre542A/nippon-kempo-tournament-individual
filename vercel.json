@@ -1,10 +1,10 @@
 {
   "functions": {
-    "api/index.js": {
+    "api-fastify/index.js": {
       "maxDuration": 10
     }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api" }
+    { "source": "/api/(.*)", "destination": "/api-fastify/index.js" }
   ]
 }
