@@ -28,7 +28,7 @@ const init = async () => {
 
   // CORS - Configuration pour Vercel/Render
   await fastify.register(cors, {
-    origin: true, // Accepte toutes les origines en production
+    origin: true,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
@@ -37,48 +37,70 @@ const init = async () => {
     optionsSuccessStatus: 204
   });
 
-  // MySQL - Configuration pour Railway avec SSL et optimisations
+  // LOG DEBUG ENV VARS POUR MYSQL
+  console.log("=== ENV Render → Variables MySQL ===");
+  console.log("MYSQL_URL:", process.env.MYSQL_URL);
+  console.log("MYSQLHOST:", process.env.MYSQLHOST);
+  console.log("MYSQLUSER:", process.env.MYSQLUSER);
+  console.log("MYSQLPASSWORD:", process.env.MYSQLPASSWORD ? "***" : undefined);
+  console.log("MYSQLDATABASE:", process.env.MYSQLDATABASE);
+  console.log("MYSQLPORT:", process.env.MYSQLPORT);
+  console.log("====================================");
+
+  // MySQL - Configuration Railway avec SSL & logs debug
   try {
     let pool;
-    
     if (process.env.MYSQL_URL) {
       console.log("🔗 Connexion MySQL via URL complète");
-      
-      // Parse l'URL pour extraire les composants
       const url = new URL(process.env.MYSQL_URL);
-      
+
+      // LOG DE LA CONFIG VRAIMENT UTILISÉE
+      console.log("[CONF] Host:", url.hostname);
+      console.log("[CONF] Port:", url.port);
+      console.log("[CONF] User:", url.username);
+      console.log("[CONF] Database:", url.pathname.slice(1));
+
       const dbConfig = {
         host: url.hostname,
         port: parseInt(url.port) || 3306,
         user: url.username,
         password: url.password,
-        database: url.pathname.slice(1), // Enlève le '/' initial
-        
-        // Configuration optimisée pour Railway
-        connectionLimit: 5, // Réduit pour éviter trop de connexions
+        database: url.pathname.slice(1),
+        connectionLimit: 5,
         waitForConnections: true,
         queueLimit: 0,
-        connectTimeout: 120000, // 2 minutes pour Railway
-        
-        // Configuration SSL importante pour Railway
-        ssl: {
-          rejectUnauthorized: false // Railway utilise des certificats auto-signés
-        },
-        
-        // Options de reconnexion
+        connectTimeout: 120000,
+        ssl: { rejectUnauthorized: false },
         enableKeepAlive: true,
         keepAliveInitialDelay: 0
       };
-      
+
       pool = await mysql.createPool(dbConfig);
     } else {
-      throw new Error("MYSQL_URL non définie");
+      console.log("🔗 Connexion MySQL via variables manuelles");
+      const dbConfig = {
+        host: process.env.MYSQLHOST,
+        port: parseInt(process.env.MYSQLPORT) || 3306,
+        user: process.env.MYSQLUSER,
+        password: process.env.MYSQLPASSWORD,
+        database: process.env.MYSQLDATABASE,
+        connectionLimit: 5,
+        waitForConnections: true,
+        queueLimit: 0,
+        connectTimeout: 120000,
+        ssl: { rejectUnauthorized: false },
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 0
+      };
+      console.log("[CONF]", dbConfig);
+      pool = await mysql.createPool(dbConfig);
     }
-    
-    // Test de connexion avec retry
+
+    // Test de connexion avec retry et logs explicites
     let retries = 3;
     while (retries > 0) {
       try {
+        console.log(`🟡 Test de connexion MySQL... (tentative ${4 - retries}/3)`);
         const connection = await pool.getConnection();
         await connection.ping();
         connection.release();
@@ -91,7 +113,7 @@ const init = async () => {
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
-    
+
     fastify.decorate("mysql", pool);
   } catch (error) {
     console.error("❌ Erreur de connexion MySQL:", error);
@@ -108,7 +130,7 @@ const init = async () => {
       path: '/'
     }
   });
-  
+
   fastify.decorate("jwtSecret", process.env.JWT_SECRET || "default-jwt-secret-change-in-production");
 
   // Rate limiter
@@ -131,8 +153,8 @@ const init = async () => {
 
   // Routes de test
   fastify.get('/health', async (request, reply) => {
-    return { 
-      status: 'ok', 
+    return {
+      status: 'ok',
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'development'
     };
@@ -154,8 +176,8 @@ if (require.main === module) {
     try {
       await init();
       const PORT = process.env.PORT || 3000;
-      await fastify.listen({ 
-        port: PORT, 
+      await fastify.listen({
+        port: PORT,
         host: "0.0.0.0" // Important pour Render
       });
       fastify.log.info(`Serveur démarré sur le port ${PORT}`);
@@ -167,5 +189,5 @@ if (require.main === module) {
   start();
 }
 
-// Export pour les tests ou autres usages
+// Export pour tests ou autres usages
 module.exports = { fastify, init };
