@@ -1,11 +1,21 @@
 {
-  "buildCommand": "cd front-quasar && npm install && npm run build",
+  "buildCommand": "cd api && npm install && cd ../front-quasar && npm install && npm run build",
   "outputDirectory": "front-quasar/dist/spa",
+  "framework": null,
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 10,
+      "runtime": "nodejs18.x"
+    }
+  },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.js" },
-    { "source": "/(.*)", "destination": "/$1" }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+    {
+      "source": "/api/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/$1"
+    }
+  ]
 }

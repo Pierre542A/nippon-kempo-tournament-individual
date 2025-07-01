@@ -32,8 +32,8 @@ services:
       - mysql-bdd
 
   # --- Fastify API ---
-  api-fastify:
-    build: ./api-fastify
+  api:
+    build: ./api
     container_name: fastify-api
     restart: always
     env_file:
