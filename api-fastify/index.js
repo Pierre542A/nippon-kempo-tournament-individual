@@ -105,7 +105,7 @@ const init = async () => {
   await passwordResetServiceInstance.initialize();
 
   // Routes de test
-  fastify.get('/api/health', async (request, reply) => {
+  fastify.get('/health', async (request, reply) => {
     return { 
       status: 'ok', 
       timestamp: new Date().toISOString(),
@@ -113,7 +113,7 @@ const init = async () => {
     };
   });
 
-  fastify.get('/api/db-test', async (request, reply) => {
+  fastify.get('/db-test', async (request, reply) => {
     try {
       const [rows] = await fastify.mysql.query('SELECT 1 as test');
       return { 
