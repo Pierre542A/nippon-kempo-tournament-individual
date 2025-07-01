@@ -37,38 +37,60 @@ const init = async () => {
     optionsSuccessStatus: 204
   });
 
-  // MySQL - Utilise directement l'URL ou les variables séparées
+  // MySQL - Configuration pour Railway avec SSL et optimisations
   try {
     let pool;
     
-    // Priorité à MYSQL_URL si elle existe
     if (process.env.MYSQL_URL) {
       console.log("🔗 Connexion MySQL via URL complète");
-      pool = await mysql.createPool(process.env.MYSQL_URL);
-    } else {
-      // Fallback sur les variables séparées
-      console.log("🔗 Connexion MySQL via variables séparées");
+      
+      // Parse l'URL pour extraire les composants
+      const url = new URL(process.env.MYSQL_URL);
+      
       const dbConfig = {
-        host: process.env.MYSQL_HOST,
-        port: parseInt(process.env.MYSQL_PORT) || 3306,
-        user: process.env.MYSQL_USER,
-        password: process.env.MYSQL_PASSWORD,
-        database: process.env.MYSQL_DATABASE,
-        connectionLimit: 10,
+        host: url.hostname,
+        port: parseInt(url.port) || 3306,
+        user: url.username,
+        password: url.password,
+        database: url.pathname.slice(1), // Enlève le '/' initial
+        
+        // Configuration optimisée pour Railway
+        connectionLimit: 5, // Réduit pour éviter trop de connexions
         waitForConnections: true,
         queueLimit: 0,
-        connectTimeout: 60000,
+        connectTimeout: 120000, // 2 minutes pour Railway
+        
+        // Configuration SSL importante pour Railway
+        ssl: {
+          rejectUnauthorized: false // Railway utilise des certificats auto-signés
+        },
+        
+        // Options de reconnexion
         enableKeepAlive: true,
         keepAliveInitialDelay: 0
       };
+      
       pool = await mysql.createPool(dbConfig);
+    } else {
+      throw new Error("MYSQL_URL non définie");
     }
     
-    // Test de connexion
-    const connection = await pool.getConnection();
-    await connection.ping();
-    connection.release();
-    console.log("✅ Connexion MySQL établie avec succès");
+    // Test de connexion avec retry
+    let retries = 3;
+    while (retries > 0) {
+      try {
+        const connection = await pool.getConnection();
+        await connection.ping();
+        connection.release();
+        console.log("✅ Connexion MySQL établie avec succès");
+        break;
+      } catch (err) {
+        retries--;
+        if (retries === 0) throw err;
+        console.log(`⚠️ Tentative de connexion échouée, ${retries} essais restants...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
     
     fastify.decorate("mysql", pool);
   } catch (error) {
