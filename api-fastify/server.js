@@ -4,19 +4,19 @@ require("dotenv").config();
 require('events').EventEmitter.defaultMaxListeners = 15;
 
 // Import services et contrôleurs
-const UserService = require("../services/userService");
-const TournamentService = require("../services/TournamentService");
-const PasswordResetService = require("../services/PasswordResetService");
-const PasswordResetController = require("../controllers/PasswordResetController");
-const MatchService = require("../services/MatchService");
+const UserService = require("./services/userService");
+const TournamentService = require("./services/TournamentService");
+const PasswordResetService = require("./services/PasswordResetService");
+const PasswordResetController = require("./controllers/PasswordResetController");
+const MatchService = require("./services/MatchService");
 
 // Import middlewares & routes
-const rateLimit = require("../middlewares/rateLimit");
-const userRoutes = require("../routes/userRoutes");
-const gradeRoutes = require("../routes/gradeRoutes");
-const clubRoutes = require("../routes/clubRoutes");
-const passwordResetRoutes = require("../routes/passwordReset");
-const importRoutes = require("../routes/importRoutes");
+const rateLimit = require("./middlewares/rateLimit");
+const userRoutes = require("./routes/userRoutes");
+const gradeRoutes = require("./routes/gradeRoutes");
+const clubRoutes = require("./routes/clubRoutes");
+const passwordResetRoutes = require("./routes/passwordReset");
+const importRoutes = require("./routes/importRoutes");
 
 const cors = require("@fastify/cors");
 const cookie = require("@fastify/cookie");
@@ -26,10 +26,10 @@ let isReady = false;
 const init = async () => {
   if (isReady) return;
 
-  // CORS - Configuration complète pour accepter toutes les origines
+  // CORS - Configuration pour Vercel
   await fastify.register(cors, {
-    origin: true, // Accepte toutes les origines
-    credentials: true, // IMPORTANT pour les cookies
+    origin: true, // Accepte toutes les origines en production
+    credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
     exposedHeaders: ["Set-Cookie"],
@@ -37,17 +37,17 @@ const init = async () => {
     optionsSuccessStatus: 204
   });
 
-  // MySQL - Configuration optimisée pour Railway
+  // MySQL - Utilise les variables d'environnement de votre server.js
   const dbConfig = {
-    host: process.env.MYSQLHOST,
-    port: parseInt(process.env.MYSQLPORT),
-    user: process.env.MYSQLUSER,
-    password: process.env.MYSQLPASSWORD,
-    database: process.env.MYSQLDATABASE,
-    connectionLimit: 10, // Réduit
+    host: process.env.MYSQL_HOST,
+    port: process.env.MYSQL_PORT || 3306,
+    user: process.env.MYSQL_USER,
+    password: process.env.MYSQL_PASSWORD,
+    database: process.env.MYSQL_DATABASE,
+    connectionLimit: 10,
     waitForConnections: true,
     queueLimit: 0,
-    connectTimeout: 60000, // 60 secondes pour Railway
+    connectTimeout: 60000,
     enableKeepAlive: true,
     keepAliveInitialDelay: 0
   };
@@ -64,16 +64,10 @@ const init = async () => {
     fastify.decorate("mysql", pool);
   } catch (error) {
     console.error("❌ Erreur de connexion MySQL:", error);
-    console.error("Config utilisée:", {
-      host: dbConfig.host,
-      port: dbConfig.port,
-      user: dbConfig.user,
-      database: dbConfig.database
-    });
     throw error;
   }
 
-  // Cookies & JWT - Configuration pour cross-origin
+  // Cookies & JWT
   await fastify.register(cookie, {
     secret: process.env.COOKIE_SECRET || "default-secret-change-in-production",
     parseOptions: {
@@ -111,24 +105,6 @@ const init = async () => {
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'development'
     };
-  });
-
-  fastify.get('/db-test', async (request, reply) => {
-    try {
-      const [rows] = await fastify.mysql.query('SELECT 1 as test');
-      return { 
-        status: 'ok', 
-        database: 'connected',
-        result: rows[0],
-        timestamp: new Date().toISOString() 
-      };
-    } catch (error) {
-      reply.code(500).send({ 
-        status: 'error', 
-        message: 'Database connection failed',
-        error: error.message 
-      });
-    }
   });
 
   // Routes principales

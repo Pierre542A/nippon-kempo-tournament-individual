@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api"
+      "destination": "/api-fastify"
     },
     {
       "source": "/(.*)",
@@ -13,9 +13,11 @@
     }
   ],
   "functions": {
-    "api/index.js": {
-      "maxDuration": 10,
-      "includeFiles": "api-fastify/**"
+    "api-fastify/index.js": {
+      "maxDuration": 10
     }
+  },
+  "env": {
+    "NODE_ENV": "production"
   }
 }
