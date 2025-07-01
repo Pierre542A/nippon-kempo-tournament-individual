@@ -1,7 +1,6 @@
 {
-  "buildCommand": "cd front-quasar && npm run build",
+  "buildCommand": "ls -la && cd front-quasar && ls -la && npm install && npm run build",
   "outputDirectory": "front-quasar/dist/spa",
-  "installCommand": "cd front-quasar && npm install && cd ../api-fastify && npm install",
   "functions": {
     "api-fastify/index.js": {
       "runtime": "nodejs18.x",
