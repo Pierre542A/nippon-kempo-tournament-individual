@@ -4,10 +4,10 @@
       "maxDuration": 30
     }
   },
-  "rewrites": [
-    { 
-      "source": "/api/(.*)", 
-      "destination": "/api-fastify/index.js?path=$1" 
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api-fastify/index.js"
     }
   ]
 }
