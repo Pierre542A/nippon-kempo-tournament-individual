@@ -26,9 +26,9 @@ let isReady = false;
 const init = async () => {
   if (isReady) return;
 
-  // CORS - Configuration pour Vercel
+  // CORS - Configuration pour Render
   await fastify.register(cors, {
-    origin: true, // Accepte toutes les origines en production
+    origin: true,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
@@ -37,7 +37,7 @@ const init = async () => {
     optionsSuccessStatus: 204
   });
 
-  // MySQL - Utilise les variables d'environnement de votre server.js
+  // MySQL - Utilise les variables d'environnement
   const dbConfig = {
     host: process.env.MYSQLHOST,
     port: process.env.MYSQLPORT,
@@ -54,13 +54,13 @@ const init = async () => {
 
   try {
     const pool = await mysql.createPool(dbConfig);
-    
+
     // Test de connexion
     const connection = await pool.getConnection();
     await connection.ping();
     connection.release();
     console.log("✅ Connexion MySQL établie avec succès");
-    
+
     fastify.decorate("mysql", pool);
   } catch (error) {
     console.error("❌ Erreur de connexion MySQL:", error);
@@ -77,7 +77,7 @@ const init = async () => {
       path: '/'
     }
   });
-  
+
   fastify.decorate("jwtSecret", process.env.JWT_SECRET || "default-jwt-secret-change-in-production");
 
   // Rate limiter
@@ -98,10 +98,10 @@ const init = async () => {
 
   await passwordResetServiceInstance.initialize();
 
-  // Routes de test
+  // Route health check
   fastify.get('/health', async (request, reply) => {
-    return { 
-      status: 'ok', 
+    return {
+      status: 'ok',
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'development'
     };
@@ -117,39 +117,14 @@ const init = async () => {
   isReady = true;
 };
 
-// Vercel serverless handler
-module.exports = async (req, res) => {
-  try {
-    // Gestion spéciale pour les requêtes OPTIONS (preflight CORS)
-    if (req.method === 'OPTIONS') {
-      res.statusCode = 204;
-      res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-      res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader('Access-Control-Max-Age', '86400');
-      res.end();
-      return;
+// === DÉMARRAGE CLASSIQUE POUR RENDER ===
+init().then(() => {
+  const PORT = process.env.PORT || 3000;
+  fastify.listen({ port: PORT, host: '0.0.0.0' }, (err, address) => {
+    if (err) {
+      console.error(err);
+      process.exit(1);
     }
-
-    await init();
-    await fastify.ready();
-    
-    // Ajouter les headers CORS à toutes les réponses
-    const origin = req.headers.origin || '*';
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    
-    fastify.server.emit("request", req, res);
-  } catch (err) {
-    console.error("Fastify error:", err);
-    res.statusCode = 500;
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.end(JSON.stringify({ 
-      error: "Internal Server Error", 
-      message: err.message,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-    }));
-  }
-};
+    console.log(`✅ Fastify server ready on ${address}`);
+  });
+});
