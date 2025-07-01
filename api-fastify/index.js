@@ -44,7 +44,7 @@ const init = async () => {
     user: process.env.MYSQLUSER,
     password: process.env.MYSQLPASSWORD,
     database: process.env.MYSQLDATABASE,
-    connectionLimit: 10, // Réduit pour Vercel
+    connectionLimit: 10, // Réduit
     waitForConnections: true,
     queueLimit: 0,
     connectTimeout: 60000, // 60 secondes pour Railway
