@@ -1,6 +1,9 @@
 {
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "functions": {
     "api-fastify/index.js": {
+      "runtime": "nodejs18.x",
       "maxDuration": 30
     }
   },
@@ -8,6 +11,10 @@
     {
       "src": "/api/(.*)",
       "dest": "/api-fastify/index.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/dist/$1"
     }
   ]
 }
