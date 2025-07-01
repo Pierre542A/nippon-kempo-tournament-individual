@@ -5,7 +5,7 @@
       <q-toolbar>
         <q-btn flat dense round icon="menu" @click="toggleLeftDrawer" />
         <q-toolbar-title>{{ currentTitle }}</q-toolbar-title>
-        <div>CDA Cube #3-2</div>
+        <div>CDA Cube #3-2.1</div>
       </q-toolbar>
     </q-header>
 
