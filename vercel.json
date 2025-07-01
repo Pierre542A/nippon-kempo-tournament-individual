@@ -1,17 +1,21 @@
 {
-  "functions": {
-    "api-fastify/index.js": {
-      "maxDuration": 30
-    }
-  },
-  "routes": [
+  "buildCommand": "cd front-quasar && npm install && npm run build",
+  "outputDirectory": "front-quasar/dist/spa",
+  "framework": null,
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api-fastify/index.js"
+      "source": "/api/(.*)",
+      "destination": "/api"
     },
     {
-      "src": "/(.*)",
-      "dest": "/front-quasar/dist/spa/index.html"
+      "source": "/(.*)",
+      "destination": "/$1"
     }
-  ]
+  ],
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 10,
+      "includeFiles": "api-fastify/**"
+    }
+  }
 }
