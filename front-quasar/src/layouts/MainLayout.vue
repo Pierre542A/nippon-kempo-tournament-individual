@@ -32,7 +32,7 @@
             </div>
           </div>
 
-          <!-- Not connected -->
+          <!-- No - connected -->
           <div v-else style="display:flex;flex-direction:column;align-items:center;">
             <q-btn color="primary" class="text-white q-mb-sm" label="Se connecter" @click="showLoginDialog = true" />
             <q-btn color="secondary" class="text-white" label="S'inscrire" @click="showSignupDialog = true" />
