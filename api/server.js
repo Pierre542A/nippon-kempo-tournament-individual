@@ -26,9 +26,9 @@ let isReady = false;
 const init = async () => {
   if (isReady) return;
 
-  // CORS - Configuration pour Render
+  // CORS - Configuration pour Vercel/Render
   await fastify.register(cors, {
-    origin: true,
+    origin: true, // Accepte toutes les origines en production
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
@@ -37,30 +37,39 @@ const init = async () => {
     optionsSuccessStatus: 204
   });
 
-  // MySQL - Utilise les variables d'environnement
-  const dbConfig = {
-    host: process.env.MYSQLHOST,
-    port: process.env.MYSQLPORT,
-    user: process.env.MYSQLUSER,
-    password: process.env.MYSQLPASSWORD,
-    database: process.env.MYSQLDATABASE,
-    connectionLimit: 10,
-    waitForConnections: true,
-    queueLimit: 0,
-    connectTimeout: 60000,
-    enableKeepAlive: true,
-    keepAliveInitialDelay: 0
-  };
-
+  // MySQL - Utilise directement l'URL ou les variables séparées
   try {
-    const pool = await mysql.createPool(dbConfig);
-
+    let pool;
+    
+    // Priorité à MYSQL_URL si elle existe
+    if (process.env.MYSQL_URL) {
+      console.log("🔗 Connexion MySQL via URL complète");
+      pool = await mysql.createPool(process.env.MYSQL_URL);
+    } else {
+      // Fallback sur les variables séparées
+      console.log("🔗 Connexion MySQL via variables séparées");
+      const dbConfig = {
+        host: process.env.MYSQL_HOST,
+        port: parseInt(process.env.MYSQL_PORT) || 3306,
+        user: process.env.MYSQL_USER,
+        password: process.env.MYSQL_PASSWORD,
+        database: process.env.MYSQL_DATABASE,
+        connectionLimit: 10,
+        waitForConnections: true,
+        queueLimit: 0,
+        connectTimeout: 60000,
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 0
+      };
+      pool = await mysql.createPool(dbConfig);
+    }
+    
     // Test de connexion
     const connection = await pool.getConnection();
     await connection.ping();
     connection.release();
     console.log("✅ Connexion MySQL établie avec succès");
-
+    
     fastify.decorate("mysql", pool);
   } catch (error) {
     console.error("❌ Erreur de connexion MySQL:", error);
@@ -77,7 +86,7 @@ const init = async () => {
       path: '/'
     }
   });
-
+  
   fastify.decorate("jwtSecret", process.env.JWT_SECRET || "default-jwt-secret-change-in-production");
 
   // Rate limiter
@@ -98,10 +107,10 @@ const init = async () => {
 
   await passwordResetServiceInstance.initialize();
 
-  // Route health check
+  // Routes de test
   fastify.get('/health', async (request, reply) => {
-    return {
-      status: 'ok',
+    return { 
+      status: 'ok', 
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'development'
     };
@@ -117,14 +126,24 @@ const init = async () => {
   isReady = true;
 };
 
-// === DÉMARRAGE CLASSIQUE POUR RENDER ===
-init().then(() => {
-  const PORT = process.env.PORT || 3000;
-  fastify.listen({ port: PORT, host: '0.0.0.0' }, (err, address) => {
-    if (err) {
-      console.error(err);
+// Pour le développement local
+if (require.main === module) {
+  const start = async () => {
+    try {
+      await init();
+      const PORT = process.env.PORT || 3000;
+      await fastify.listen({ 
+        port: PORT, 
+        host: "0.0.0.0" // Important pour Render
+      });
+      fastify.log.info(`Serveur démarré sur le port ${PORT}`);
+    } catch (err) {
+      fastify.log.error("Server startup error:", err);
       process.exit(1);
     }
-    console.log(`✅ Fastify server ready on ${address}`);
-  });
-});
+  };
+  start();
+}
+
+// Export pour les tests ou autres usages
+module.exports = { fastify, init };
