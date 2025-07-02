@@ -10,7 +10,7 @@ echo.
 
 :: Étape 1 - Arrêt des conteneurs et suppression forcée
 echo 🔴 [1/5] Arrêt et suppression des anciens conteneurs...
-docker rm -f fastify-api front-quasar mysql-bdd phpmyadmin > nul 2>&1
+docker rm -f api front-quasar mysql-bdd phpmyadmin > nul 2>&1
 docker-compose down -v
 echo ✅ Conteneurs arrêtés et supprimés avec succès !
 echo.
@@ -28,7 +28,7 @@ echo.
 
 :: Étape 3 - Construction et démarrage de l'API Fastify
 echo 🟢 [3/5] Construction et démarrage de l'API Fastify...
-docker-compose up -d --build api-fastify
+docker-compose up -d --build api
 if %errorlevel% neq 0 (
     echo ❌ Erreur lors du démarrage de l'API Fastify !
     pause

@@ -23,12 +23,77 @@ const cookie = require("@fastify/cookie");
 
 let isReady = false;
 
+// Fonction utilitaire pour attendre
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Fonction de connexion MySQL avec retry
+const connectToMySQL = async (maxRetries = 10, delay = 5000) => {
+  let dbConfig;
+
+  if (process.env.MYSQL_URL) {
+    const url = new URL(process.env.MYSQL_URL);
+    dbConfig = {
+      host: url.hostname,
+      port: parseInt(url.port) || 3306,
+      user: url.username,
+      password: url.password,
+      database: url.pathname.slice(1),
+      connectionLimit: 5,
+      waitForConnections: true,
+      queueLimit: 0,
+      connectTimeout: 120000,
+      ssl: { rejectUnauthorized: false },
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 0
+    };
+    console.log(`[MySQL] Connexion via URL (${dbConfig.user}@${dbConfig.host}:${dbConfig.port}/${dbConfig.database})`);
+  } else {
+    dbConfig = {
+      host: process.env.MYSQLHOST,
+      port: parseInt(process.env.MYSQLPORT) || 3306,
+      user: process.env.MYSQLUSER,
+      password: process.env.MYSQLPASSWORD,
+      database: process.env.MYSQLDATABASE,
+      connectionLimit: 5,
+      waitForConnections: true,
+      queueLimit: 0,
+      connectTimeout: 120000,
+      ssl: { rejectUnauthorized: false },
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 0
+    };
+    console.log(`[MySQL] Connexion via variables (${dbConfig.user}@${dbConfig.host}:${dbConfig.port}/${dbConfig.database})`);
+  }
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[MySQL] Tentative de connexion ${attempt}/${maxRetries}...`);
+      const pool = await mysql.createPool(dbConfig);
+      await pool.query("SELECT 1");
+      console.log("✅ Connexion MySQL OK");
+      return pool;
+    } catch (error) {
+      console.error(`❌ Tentative ${attempt}/${maxRetries} échouée:`, error.message);
+      
+      if (attempt === maxRetries) {
+        throw new Error(`Impossible de se connecter à MySQL après ${maxRetries} tentatives`);
+      }
+      
+      console.log(`⏳ Nouvelle tentative dans ${delay/1000}s...`);
+      await sleep(delay);
+    }
+  }
+};
+
 const init = async () => {
   if (isReady) return;
 
   // CORS
   await fastify.register(cors, {
-    origin: true,
+    origin: [
+      'http://localhost:8080',  // Local
+      'https://nippon-kempo-tournament-individual.onrender.com'  // Production
+    ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
@@ -37,52 +102,12 @@ const init = async () => {
     optionsSuccessStatus: 204
   });
 
-  // MySQL
+  // MySQL avec retry
   try {
-    let dbConfig;
-
-    if (process.env.MYSQL_URL) {
-      const url = new URL(process.env.MYSQL_URL);
-      dbConfig = {
-        host: url.hostname,
-        port: parseInt(url.port) || 3306,
-        user: url.username,
-        password: url.password,
-        database: url.pathname.slice(1),
-        connectionLimit: 5,
-        waitForConnections: true,
-        queueLimit: 0,
-        connectTimeout: 120000,
-        ssl: { rejectUnauthorized: false },
-        enableKeepAlive: true,
-        keepAliveInitialDelay: 0
-      };
-      console.log(`[MySQL] Connexion via URL (${dbConfig.user}@${dbConfig.host}:${dbConfig.port}/${dbConfig.database})`);
-    } else {
-      dbConfig = {
-        host: process.env.MYSQLHOST,
-        port: parseInt(process.env.MYSQLPORT) || 3306,
-        user: process.env.MYSQLUSER,
-        password: process.env.MYSQLPASSWORD,
-        database: process.env.MYSQLDATABASE,
-        connectionLimit: 5,
-        waitForConnections: true,
-        queueLimit: 0,
-        connectTimeout: 120000,
-        ssl: { rejectUnauthorized: false },
-        enableKeepAlive: true,
-        keepAliveInitialDelay: 0
-      };
-      console.log(`[MySQL] Connexion via variables (${dbConfig.user}@${dbConfig.host}:${dbConfig.port}/${dbConfig.database})`);
-    }
-
-    const pool = await mysql.createPool(dbConfig);
-    // Test simple, une seule fois
-    await pool.query("SELECT 1");
-    console.log("✅ Connexion MySQL OK");
+    const pool = await connectToMySQL();
     fastify.decorate("mysql", pool);
   } catch (error) {
-    console.error("❌ Connexion MySQL échouée:", error.message);
+    console.error("❌ Connexion MySQL définitivement échouée:", error.message);
     throw error;
   }
 
@@ -91,9 +116,10 @@ const init = async () => {
     secret: process.env.COOKIE_SECRET,
     parseOptions: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: true,  // Toujours true en HTTPS
+      sameSite: 'none',  // OBLIGATOIRE pour cross-domain
       path: '/'
+      // Pas de domain spécifique pour permettre cross-domain
     }
   });
 
