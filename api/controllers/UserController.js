@@ -51,8 +51,8 @@ class UserController {
       // Configuration du cookie
       reply.setCookie('auth_token_nippon', token, {
         httpOnly: true,
-        secure: false,
-        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',  // ✅ Dynamique
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',  // ✅ Cross-domain en prod
         path: '/',
         maxAge: 24 * 60 * 60
       });
@@ -81,13 +81,14 @@ class UserController {
         role: user.id_role // Ajout du rôle dans le token
       }, this.jwtSecret, { expiresIn: '24h' })
 
+      // Dans login(), signup(), et loginAdmin()
       reply.setCookie('auth_token_nippon', token, {
         httpOnly: true,
-        secure: false,
-        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',  // ✅ Dynamique
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',  // ✅ Cross-domain en prod
         path: '/',
         maxAge: 24 * 60 * 60
-      })
+      });
 
       return reply.send({
         success: true,
@@ -169,8 +170,8 @@ class UserController {
     reply.clearCookie('auth_token_nippon', {
       path: '/',
       httpOnly: true,
-      sameSite: 'lax',
-      secure: false
+      secure: process.env.NODE_ENV === 'production',  // ✅ Même config
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'  // ✅ Même config
     });
     return reply.send({ success: true });
   }
@@ -209,10 +210,11 @@ class UserController {
           { expiresIn: '24h' }
         );
 
+        // Dans login(), signup(), et loginAdmin()
         reply.setCookie('auth_token_nippon', token, {
           httpOnly: true,
-          secure: false,
-          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',  // ✅ Dynamique
+          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',  // ✅ Cross-domain en prod
           path: '/',
           maxAge: 24 * 60 * 60
         });
