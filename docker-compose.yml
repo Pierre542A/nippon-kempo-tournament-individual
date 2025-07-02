@@ -4,8 +4,6 @@ services:
     image: mysql:8
     container_name: mysql-bdd
     restart: always
-    env_file:
-      - .env
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQLROOTPASSWORD}
       MYSQL_DATABASE: ${MYSQLDATABASE}
@@ -15,14 +13,13 @@ services:
       - "3306:3306"
     volumes:
       - ./bdd-mysql2:/docker-entrypoint-initdb.d
+      - mysql_data:/var/lib/mysql
 
   # --- phpMyAdmin ---
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
     container_name: phpmyadmin
     restart: always
-    env_file:
-      - .env
     environment:
       PMA_HOST: mysql-bdd
       MYSQL_ROOT_PASSWORD: ${MYSQLROOTPASSWORD}
@@ -39,10 +36,14 @@ services:
     env_file:
       - .env
     environment:
+      # Variables MySQL pour Docker local
       MYSQLHOST: ${MYSQLHOST}
       MYSQLUSER: ${MYSQLUSER}
       MYSQLPASSWORD: ${MYSQLPASSWORD}
       MYSQLDATABASE: ${MYSQLDATABASE}
+      
+      # Autres variables
+      NODE_ENV: ${NODE_ENV:-development}
       JWT_SECRET: ${JWT_SECRET}
       VITE_API_URL: ${VITE_API_URL}
       MJ_APIKEY_PUBLIC: ${MJ_APIKEY_PUBLIC}
@@ -58,16 +59,13 @@ services:
     build: ./front-quasar
     container_name: front-quasar
     command: ["sh", "-c", "npm install && quasar dev --hostname 0.0.0.0"]
-
     environment:
       CHOKIDAR_USEPOLLING: 1
       CHOKIDAR_INTERVAL: 750
       VITE_API_URL: ${VITE_API_URL}
-
     volumes:
       - ./front-quasar:/app
       - /app/node_modules
-
     ports:
       - "8080:8080"
 

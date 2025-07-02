@@ -30,6 +30,7 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const connectToMySQL = async (maxRetries = 10, delay = 5000) => {
   let dbConfig;
 
+  // Prioriser MYSQL_URL si disponible (production)
   if (process.env.MYSQL_URL) {
     const url = new URL(process.env.MYSQL_URL);
     dbConfig = {
@@ -46,8 +47,10 @@ const connectToMySQL = async (maxRetries = 10, delay = 5000) => {
       enableKeepAlive: true,
       keepAliveInitialDelay: 0
     };
-    console.log(`[MySQL] Connexion via URL (${dbConfig.user}@${dbConfig.host}:${dbConfig.port}/${dbConfig.database})`);
-  } else {
+    console.log(`[MySQL] Connexion via MYSQL_URL (${dbConfig.user}@${dbConfig.host}:${dbConfig.port}/${dbConfig.database})`);
+  } 
+  // Fallback sur les variables individuelles (local/Docker)
+  else if (process.env.MYSQLHOST) {
     dbConfig = {
       host: process.env.MYSQLHOST,
       port: parseInt(process.env.MYSQLPORT) || 3306,
@@ -58,11 +61,14 @@ const connectToMySQL = async (maxRetries = 10, delay = 5000) => {
       waitForConnections: true,
       queueLimit: 0,
       connectTimeout: 120000,
-      ssl: { rejectUnauthorized: false },
+      // Pas de SSL pour le local/Docker
       enableKeepAlive: true,
       keepAliveInitialDelay: 0
     };
-    console.log(`[MySQL] Connexion via variables (${dbConfig.user}@${dbConfig.host}:${dbConfig.port}/${dbConfig.database})`);
+    console.log(`[MySQL] Connexion via variables individuelles (${dbConfig.user}@${dbConfig.host}:${dbConfig.port}/${dbConfig.database})`);
+  } 
+  else {
+    throw new Error("Aucune configuration MySQL trouvée. Veuillez définir MYSQL_URL ou les variables MYSQLHOST, MYSQLUSER, etc.");
   }
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -88,12 +94,14 @@ const connectToMySQL = async (maxRetries = 10, delay = 5000) => {
 const init = async () => {
   if (isReady) return;
 
-  // CORS
+  // CORS - Détection automatique de l'environnement
+  const isProduction = process.env.NODE_ENV === 'production';
+  const corsOrigins = isProduction 
+    ? ['https://nippon-kempo-tournament-individual.onrender.com']
+    : ['http://localhost:8080'];
+
   await fastify.register(cors, {
-    origin: [
-      'http://localhost:8080',  // Local
-      'https://nippon-kempo-tournament-individual.onrender.com'  // Production
-    ],
+    origin: corsOrigins,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
@@ -116,10 +124,9 @@ const init = async () => {
     secret: process.env.COOKIE_SECRET,
     parseOptions: {
       httpOnly: true,
-      secure: true,  // Toujours true en HTTPS
-      sameSite: 'none',  // OBLIGATOIRE pour cross-domain
+      secure: isProduction,  // true en production, false en local
+      sameSite: isProduction ? 'none' : 'lax',  // Cross-domain en prod, lax en local
       path: '/'
-      // Pas de domain spécifique pour permettre cross-domain
     }
   });
 
