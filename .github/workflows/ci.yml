@@ -88,19 +88,23 @@ jobs:
         "
     
     - name: Run API tests
-      env:
-        MYSQLHOST: 127.0.0.1
-        MYSQLUSER: root
-        MYSQLPASSWORD: rootpassword
-        MYSQLDATABASE: test_db
-        NODE_ENV: test
-        JWT_SECRET: test-secret-for-ci
-        COOKIE_SECRET: test-cookie-secret-with-at-least-32-characters
-        MJ_APIKEY_PUBLIC: test_key
-        MJ_APIKEY_PRIVATE: test_key
-      run: |
-        cd api
-        npm run test || echo "Tests completed (may need implementation)"
+    env:
+      # Variables MySQL sécurisées depuis vos secrets GitHub
+      MYSQLHOST: 127.0.0.1
+      MYSQLUSER: ${{ secrets.CI_MYSQL_USER }}
+      MYSQLPASSWORD: ${{ secrets.CI_MYSQL_PASSWORD }}
+      MYSQLROOTPASSWORD: ${{ secrets.CI_MYSQL_ROOT_PASSWORD }}
+      MYSQLDATABASE: ${{ secrets.CI_MYSQL_DATABASE }}
+      
+      # Variables d'environnement sécurisées
+      NODE_ENV: test
+      JWT_SECRET: ${{ secrets.CI_JWT_SECRET }}
+      COOKIE_SECRET: ${{ secrets.CI_COOKIE_SECRET }}
+      MJ_APIKEY_PUBLIC: ${{ secrets.CI_MJ_APIKEY_PUBLIC }}
+      MJ_APIKEY_PRIVATE: ${{ secrets.CI_MJ_APIKEY_PRIVATE }}
+    run: |
+      cd api
+      npm run test || echo "Tests completed (may need implementation)"
 
   # Job 2 : Tests du Frontend CORRIGÉ
   test-frontend:
