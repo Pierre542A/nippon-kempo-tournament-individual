@@ -1,18 +1,20 @@
 name: CD.YML Pipeline - Tests Complets
+
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
     inputs:
       force_deploy:
-        description: 'Force deployment even without changes'
+        description: '🚀 Force deployment even without code changes'
         required: false
         default: false
         type: boolean
 
 jobs:
-  # Job 1 : Analyser les changements
-  analyze-changes:
+  # Job 1: Analyser les changements
+  change-detection:
+    name: "🔍 Detect Changes & Plan Deployment"
     runs-on: ubuntu-latest
     outputs:
       should_deploy: ${{ steps.changes.outputs.should_deploy }}
@@ -21,41 +23,49 @@ jobs:
       changes_summary: ${{ steps.changes.outputs.changes_summary }}
     
     steps:
-    - name: Checkout
+    - name: 📥 Checkout with history
       uses: actions/checkout@v4
       with:
         fetch-depth: 2
     
-    - name: Analyze changes
+    - name: 🔍 Analyze what changed
       id: changes
       run: |
-        echo "🔍 Analyzing changes..."
+        echo "🔍 Analyzing changes in this push..."
         
+        # Force deployment si demandé manuellement
         if [ "${{ github.event.inputs.force_deploy }}" = "true" ]; then
-          echo "🔄 Force deployment requested"
+          echo "🔄 Force deployment requested by ${{ github.actor }}"
           echo "should_deploy=true" >> $GITHUB_OUTPUT
           echo "api_changed=true" >> $GITHUB_OUTPUT
           echo "frontend_changed=true" >> $GITHUB_OUTPUT
-          echo "changes_summary=Manual force deployment" >> $GITHUB_OUTPUT
+          echo "changes_summary=🚀 Manual force deployment" >> $GITHUB_OUTPUT
           exit 0
         fi
         
-        # Détection des changements depuis le dernier commit
+        # Détecter les changements depuis le dernier commit
         API_FILES=$(git diff --name-only HEAD^ HEAD | grep "^api/" | wc -l)
         FRONTEND_FILES=$(git diff --name-only HEAD^ HEAD | grep "^front-quasar/" | wc -l)
         CONFIG_FILES=$(git diff --name-only HEAD^ HEAD | grep -E "^(docker-compose\.yml|\.env\.example|package\.json)$" | wc -l)
+        WORKFLOW_FILES=$(git diff --name-only HEAD^ HEAD | grep "^\.github/workflows/" | wc -l)
         
-        echo "Files changed - API: $API_FILES, Frontend: $FRONTEND_FILES, Config: $CONFIG_FILES"
+        echo "📊 Changes detected:"
+        echo "- API files: $API_FILES"
+        echo "- Frontend files: $FRONTEND_FILES"  
+        echo "- Config files: $CONFIG_FILES"
+        echo "- Workflow files: $WORKFLOW_FILES"
         
         # Décisions de déploiement
         if [ $API_FILES -gt 0 ]; then
           echo "api_changed=true" >> $GITHUB_OUTPUT
+          echo "🔄 API deployment needed"
         else
           echo "api_changed=false" >> $GITHUB_OUTPUT
         fi
         
         if [ $FRONTEND_FILES -gt 0 ]; then
           echo "frontend_changed=true" >> $GITHUB_OUTPUT
+          echo "🔄 Frontend deployment needed"
         else
           echo "frontend_changed=false" >> $GITHUB_OUTPUT
         fi
@@ -63,111 +73,204 @@ jobs:
         TOTAL_RELEVANT=$((API_FILES + FRONTEND_FILES + CONFIG_FILES))
         if [ $TOTAL_RELEVANT -gt 0 ]; then
           echo "should_deploy=true" >> $GITHUB_OUTPUT
-          echo "changes_summary=$TOTAL_RELEVANT relevant files changed" >> $GITHUB_OUTPUT
+          echo "changes_summary=📦 $TOTAL_RELEVANT deployment-relevant files changed" >> $GITHUB_OUTPUT
+          echo "✅ Deployment will proceed"
         else
           echo "should_deploy=false" >> $GITHUB_OUTPUT
-          echo "changes_summary=No deployment-relevant changes" >> $GITHUB_OUTPUT
+          echo "changes_summary=📝 Only documentation/workflow changes detected" >> $GITHUB_OUTPUT
+          echo "⏭️ Skipping deployment (no code changes)"
         fi
 
-  # Job 2 : Déploiement
-  deploy:
+  # Job 2: Déploiement via Render
+  render-deployment:
+    name: "🚀 Deploy to Render Cloud"
     runs-on: ubuntu-latest
-    needs: analyze-changes
-    if: needs.analyze-changes.outputs.should_deploy == 'true'
+    needs: change-detection
+    if: needs.change-detection.outputs.should_deploy == 'true'
     
     steps:
-    - name: Start deployment
+    - name: 🚀 Trigger deployment
       run: |
-        echo "🚀 Starting deployment..."
-        echo "Changes: ${{ needs.analyze-changes.outputs.changes_summary }}"
-        echo "API will be deployed: ${{ needs.analyze-changes.outputs.api_changed }}"
-        echo "Frontend will be deployed: ${{ needs.analyze-changes.outputs.frontend_changed }}"
-        echo "Commit: ${{ github.sha }}"
-        echo "Triggered by: ${{ github.actor }}"
+        echo "🚀 Starting production deployment..."
+        echo "📋 Deployment plan:"
+        echo "- Changes: ${{ needs.change-detection.outputs.changes_summary }}"
+        echo "- API deployment: ${{ needs.change-detection.outputs.api_changed }}"
+        echo "- Frontend deployment: ${{ needs.change-detection.outputs.frontend_changed }}"
+        echo "- Commit: ${{ github.sha }}"
+        echo "- Triggered by: ${{ github.actor }}"
+        echo ""
+        echo "📡 Render will automatically deploy based on this main branch push"
     
-    - name: Wait for Render deployment
+    - name: ⏳ Wait for Render auto-deployment
       run: |
-        echo "⏳ Waiting for Render to auto-deploy..."
+        echo "⏳ Waiting for Render to process deployment..."
         
-        # Temps d'attente adaptatif
-        if [ "${{ needs.analyze-changes.outputs.api_changed }}" = "true" ] && [ "${{ needs.analyze-changes.outputs.frontend_changed }}" = "true" ]; then
-          echo "Both API and Frontend changed - waiting 180 seconds"
+        # Temps d'attente adaptatif selon les composants changés
+        if [ "${{ needs.change-detection.outputs.api_changed }}" = "true" ] && [ "${{ needs.change-detection.outputs.frontend_changed }}" = "true" ]; then
+          echo "🔄 Both API and Frontend changed - waiting 180 seconds"
           sleep 180
-        elif [ "${{ needs.analyze-changes.outputs.api_changed }}" = "true" ]; then
-          echo "API changed - waiting 120 seconds"
+        elif [ "${{ needs.change-detection.outputs.api_changed }}" = "true" ]; then
+          echo "🔄 API changed - waiting 120 seconds"
           sleep 120
         else
-          echo "Frontend only - waiting 60 seconds"
+          echo "🔄 Frontend only - waiting 60 seconds"
           sleep 60
         fi
+        
+        echo "✅ Initial deployment wait completed"
 
-  # Job 3 : Vérification post-déploiement
-  verify:
+  # Job 3: Vérification post-déploiement
+  deployment-verification:
+    name: "✅ Verify Live Deployment"
     runs-on: ubuntu-latest
-    needs: [analyze-changes, deploy]
-    if: needs.analyze-changes.outputs.should_deploy == 'true'
+    needs: [change-detection, render-deployment]
+    if: needs.change-detection.outputs.should_deploy == 'true'
     
     steps:
-    - name: Verify API
-      if: needs.analyze-changes.outputs.api_changed == 'true'
+    - name: 🔍 Verify API deployment
+      if: needs.change-detection.outputs.api_changed == 'true'
       run: |
         echo "🔍 Verifying API deployment..."
         API_URL="https://nippon-kempo-tournament-individualcube3.onrender.com"
         
-        for i in {1..10}; do
+        for attempt in {1..10}; do
+          echo "🧪 Testing API health (attempt $attempt/10)..."
+          
           if curl -f -s "$API_URL/health" >/dev/null 2>&1; then
-            echo "✅ API is responding (attempt $i)"
+            echo "✅ API health check passed"
+            
+            # Test endpoints critiques
+            echo "🧪 Testing critical API endpoints..."
+            curl -f "$API_URL/api/tournaments" >/dev/null && echo "✅ Tournaments endpoint OK" || echo "⚠️ Tournaments endpoint issue"
+            
+            # Test que l'API retourne du JSON valide
+            API_RESPONSE=$(curl -s "$API_URL/api/tournaments" 2>/dev/null)
+            if echo "$API_RESPONSE" | jq . >/dev/null 2>&1; then
+              echo "✅ API returns valid JSON"
+            else
+              echo "⚠️ API response format issue"
+            fi
+            
             break
-          elif [ $i -eq 10 ]; then
-            echo "❌ API verification failed after 10 attempts"
-            exit 1
           else
-            echo "⏳ API not ready, attempt $i/10, waiting..."
-            sleep 30
+            if [ $attempt -eq 10 ]; then
+              echo "❌ API verification failed after 10 attempts"
+              exit 1
+            else
+              echo "⏳ API not ready yet, waiting 30 seconds..."
+              sleep 30
+            fi
           fi
         done
     
-    - name: Verify Frontend  
-      if: needs.analyze-changes.outputs.frontend_changed == 'true'
+    - name: 🔍 Verify Frontend deployment  
+      if: needs.change-detection.outputs.frontend_changed == 'true'
       run: |
         echo "🔍 Verifying Frontend deployment..."
         FRONTEND_URL="https://nippon-kempo-tournament-front.onrender.com"
         
-        for i in {1..10}; do
+        for attempt in {1..10}; do
+          echo "🧪 Testing Frontend accessibility (attempt $attempt/10)..."
+          
           if curl -f -s "$FRONTEND_URL" >/dev/null 2>&1; then
-            echo "✅ Frontend is responding (attempt $i)"
+            echo "✅ Frontend is accessible"
+            
+            # Vérifier le contenu de la page
+            CONTENT=$(curl -s "$FRONTEND_URL" 2>/dev/null)
+            if echo "$CONTENT" | grep -qi "nippon.*kempo\|tournament"; then
+              echo "✅ Frontend content verification passed"
+            else
+              echo "⚠️ Frontend content verification failed"
+            fi
+            
+            # Vérifier la présence de ressources JS/CSS
+            if echo "$CONTENT" | grep -q "script\|\.js"; then
+              echo "✅ JavaScript assets detected"
+            else
+              echo "⚠️ No JavaScript assets found"
+            fi
+            
             break
-          elif [ $i -eq 10 ]; then
-            echo "❌ Frontend verification failed after 10 attempts"
-            exit 1
           else
-            echo "⏳ Frontend not ready, attempt $i/10, waiting..."
-            sleep 30
+            if [ $attempt -eq 10 ]; then
+              echo "❌ Frontend verification failed after 10 attempts"
+              exit 1
+            else
+              echo "⏳ Frontend not ready yet, waiting 30 seconds..."
+              sleep 30
+            fi
           fi
         done
     
-    - name: Final verification
+    - name: 🧪 Full integration test
       run: |
-        echo "✅ Deployment verification completed successfully!"
-        echo "🌐 Live URLs:"
-        echo "- API: https://nippon-kempo-tournament-individualcube3.onrender.com"
-        echo "- Frontend: https://nippon-kempo-tournament-front.onrender.com"
+        echo "🔗 Testing full stack integration..."
+        
+        API_URL="https://nippon-kempo-tournament-individualcube3.onrender.com"
+        FRONTEND_URL="https://nippon-kempo-tournament-front.onrender.com"
+        
+        echo "🧪 Testing API-Frontend communication..."
+        
+        # Vérifier que l'API est accessible depuis l'extérieur
+        if curl -f -s "$API_URL/health" >/dev/null; then
+          echo "✅ API externally accessible"
+        else
+          echo "⚠️ API external access issue"
+        fi
+        
+        # Vérifier que le frontend peut charger
+        if curl -f -s "$FRONTEND_URL" >/dev/null; then
+          echo "✅ Frontend externally accessible"
+        else
+          echo "⚠️ Frontend external access issue"
+        fi
+        
+        echo "✅ Integration verification completed"
 
-  # Job 4 : Rapport final
-  report:
+  # Job 4: Rapport final de déploiement
+  deployment-report:
+    name: "📊 Deployment Report"
     runs-on: ubuntu-latest
-    needs: [analyze-changes, deploy, verify]
+    needs: [change-detection, render-deployment, deployment-verification]
     if: always()
     
     steps:
-    - name: Deployment report
+    - name: 📊 Generate deployment report
       run: |
-        if [ "${{ needs.analyze-changes.outputs.should_deploy }}" = "false" ]; then
-          echo "⏭️ Deployment skipped: ${{ needs.analyze-changes.outputs.changes_summary }}"
-        elif [ "${{ needs.verify.result }}" = "success" ]; then
-          echo "🎉 Deployment successful!"
-          echo "📊 Summary: ${{ needs.analyze-changes.outputs.changes_summary }}"
+        echo "📊 ===== DEPLOYMENT REPORT ====="
+        echo ""
+        echo "🕐 Timestamp: $(date)"
+        echo "👤 Triggered by: ${{ github.actor }}"
+        echo "📝 Commit: ${{ github.sha }}"
+        echo ""
+        
+        if [ "${{ needs.change-detection.outputs.should_deploy }}" = "false" ]; then
+          echo "⏭️ DEPLOYMENT SKIPPED"
+          echo "📋 Reason: ${{ needs.change-detection.outputs.changes_summary }}"
+          echo "💡 Tip: Use 'Run workflow' with 'Force deployment' to deploy anyway"
+        elif [ "${{ needs.deployment-verification.result }}" = "success" ]; then
+          echo "🎉 DEPLOYMENT SUCCESSFUL!"
+          echo "📋 Changes: ${{ needs.change-detection.outputs.changes_summary }}"
+          echo ""
+          echo "🌐 Live URLs:"
+          echo "- 🖥️  Frontend: https://nippon-kempo-tournament-front.onrender.com"
+          echo "- 🔗 API: https://nippon-kempo-tournament-individualcube3.onrender.com"
+          echo ""
+          echo "📊 Components deployed:"
+          echo "- API: ${{ needs.change-detection.outputs.api_changed }}"
+          echo "- Frontend: ${{ needs.change-detection.outputs.frontend_changed }}"
         else
-          echo "❌ Deployment failed!"
-          echo "🔍 Check logs above for details"
+          echo "❌ DEPLOYMENT FAILED!"
+          echo "📋 Attempted changes: ${{ needs.change-detection.outputs.changes_summary }}"
+          echo ""
+          echo "🔍 Troubleshooting steps:"
+          echo "1. Check Render dashboard for deployment logs"
+          echo "2. Verify environment variables in Render"
+          echo "3. Check Railway database connectivity"
+          echo "4. Review recent code changes for issues"
+          echo ""
+          echo "📞 Support: Check GitHub Actions logs above for detailed error information"
         fi
+        
+        echo ""
+        echo "============================="
