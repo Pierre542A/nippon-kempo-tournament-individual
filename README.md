@@ -106,7 +106,7 @@ En savoir plus sur le projet collaboratif : https://github.com/Orkhyd/CESI-Local
 
 ## 🗄️ Modèle Conceptuel de Données (MCD)
 
-![MCD Nippon Kempo Tournament](./docs/mcd-nippon-kempo.png)
+![MCD Nippon Kempo Tournament](./MCD_Individuel.png)
 
 ## 📁 Structure du projet
 
