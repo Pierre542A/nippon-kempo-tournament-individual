@@ -1,0 +1,104 @@
+name: Tests Manuels Complets
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type de test à exécuter'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+        - all
+        - api-only
+        - frontend-only
+        - database-only
+        - integration-only
+      environment:
+        description: 'Environnement à tester'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+        - local-simulation
+      verbose:
+        description: 'Mode verbose (logs détaillés)'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      test_api: ${{ steps.decide.outputs.test_api }}
+      test_frontend: ${{ steps.decide.outputs.test_frontend }}
+      test_database: ${{ steps.decide.outputs.test_database }}
+      test_integration: ${{ steps.decide.outputs.test_integration }}
+      api_url: ${{ steps.decide.outputs.api_url }}
+      frontend_url: ${{ steps.decide.outputs.frontend_url }}
+    
+    steps:
+    - name: Decide test scope
+      id: decide
+      run: |
+        case "${{ github.event.inputs.test_type }}" in
+          "all")
+            echo "test_api=true" >> $GITHUB_OUTPUT
+            echo "test_frontend=true" >> $GITHUB_OUTPUT
+            echo "test_database=true" >> $GITHUB_OUTPUT
+            echo "test_integration=true" >> $GITHUB_OUTPUT
+            ;;
+          "api-only")
+            echo "test_api=true" >> $GITHUB_OUTPUT
+            echo "test_frontend=false" >> $GITHUB_OUTPUT
+            echo "test_database=false" >> $GITHUB_OUTPUT
+            echo "test_integration=false" >> $GITHUB_OUTPUT
+            ;;
+          "frontend-only")
+            echo "test_api=false" >> $GITHUB_OUTPUT
+            echo "test_frontend=true" >> $GITHUB_OUTPUT
+            echo "test_database=false" >> $GITHUB_OUTPUT
+            echo "test_integration=false" >> $GITHUB_OUTPUT
+            ;;
+          "database-only")
+            echo "test_api=false" >> $GITHUB_OUTPUT
+            echo "test_frontend=false" >> $GITHUB_OUTPUT
+            echo "test_database=true" >> $GITHUB_OUTPUT
+            echo "test_integration=false" >> $GITHUB_OUTPUT
+            ;;
+          "integration-only")
+            echo "test_api=false" >> $GITHUB_OUTPUT
+            echo "test_frontend=false" >> $GITHUB_OUTPUT
+            echo "test_database=false" >> $GITHUB_OUTPUT
+            echo "test_integration=true" >> $GITHUB_OUTPUT
+            ;;
+        esac
+        
+        # URLs selon l'environnement
+        if [ "${{ github.event.inputs.environment }}" = "production" ]; then
+          echo "api_url=https://nippon-kempo-tournament-individualcube3.onrender.com" >> $GITHUB_OUTPUT
+          echo "frontend_url=https://nippon-kempo-tournament-front.onrender.com" >> $GITHUB_OUTPUT
+        else
+          echo "api_url=http://localhost:3000" >> $GITHUB_OUTPUT
+          echo "frontend_url=http://localhost:8080" >> $GITHUB_OUTPUT
+        fi
+
+  manual-api-test:
+    runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.test_api == 'true'
+    
+    steps:
+    - name: Manual API Tests
+      run: |
+        echo "🧪 Manual API Testing - ${{ github.event.inputs.environment }}"
+        API_URL="${{ needs.setup.outputs.api_url }}"
+        
+        echo "Testing API at: $API_URL"
+        
+        # Test complets de l'API
+        echo "1. Health check..."
+        curl
