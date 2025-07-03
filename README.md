@@ -1,6 +1,6 @@
 # Système de Gestion des Tournois de Nippon Kempo
 
-![Logo Nippon Kempo](./front-quasar/src/assets/logo.png)
+![Logo Nippon Kempo](./front-quasar/public/assets/logo.png)
 
 ## 📋 Présentation
 
@@ -70,31 +70,31 @@ En savoir plus sur le projet collaboratif : https://github.com/Orkhyd/CESI-Local
    Créez un fichier `.env` à la racine du projet avec les variables suivantes :
    ```env
    # Base de données locale (Docker)
-   MYSQL_HOST=mysql-bdd
-   MYSQL_USER=user
-   MYSQL_ROOT_PASSWORD=rootpassword
-   MYSQL_PASSWORD=password
-   MYSQL_DATABASE=mydatabase_nippon_kempo_project
+   MYSQL_HOST=
+   MYSQL_USER=
+   MYSQL_ROOT_PASSWORD=
+   MYSQL_PASSWORD=
+   MYSQL_DATABASE=
    
    # Environnement
-   NODE_ENV=development
+   NODE_ENV=
    
    # JWT & Sécurité
-   JWT_SECRET=test
-   COOKIE_SECRET=a-secret-with-at-least-32-characters
+   JWT_SECRET=
+   COOKIE_SECRET=
    
    # API URL (pour le front)
-   VITE_API_URL=http://localhost:3000
+   VITE_API_URL=
    
    # Mailjet (pour l'envoi de mails)
-   MJ_APIKEY_PUBLIC=bcf15c6b66dc91b906cf73c904da0fdd
-   MJ_APIKEY_PRIVATE=159499a6b3db43bc7d2fcaa41f57845b
+   MJ_APIKEY_PUBLIC=
+   MJ_APIKEY_PRIVATE=
    ```
 
    Créez un second fichier `.env` dans le dossier `back-individuel/` avec :
    ```env
-   VITE_APP_MDP=motdepasse
-   VITE_REPLICACHE_LICENSE_KEY=l70ce33fc0dee46abb6f056086da4d87259499a6b3db43bc7d2fcaa41f57845b
+   VITE_APP_MDP=
+   VITE_REPLICACHE_LICENSE_KEY=
    ```
 
 3. **Lancement**
@@ -106,117 +106,7 @@ En savoir plus sur le projet collaboratif : https://github.com/Orkhyd/CESI-Local
 
 ## 🗄️ Modèle Conceptuel de Données (MCD)
 
-```mermaid
-erDiagram
-    ROLES {
-        int id PK
-        string name
-        string description
-    }
-    
-    PARTICIPANT {
-        int id PK
-        string firstname
-        string lastname
-        string email
-        string password
-        date birthdate
-        int club_id FK
-        int grade_id FK
-        int gender_id FK
-        int role_id FK
-        datetime created_at
-        datetime updated_at
-    }
-    
-    CLUBS {
-        int id PK
-        string name
-        string address
-        string city
-        string postal_code
-        string contact_email
-        string contact_phone
-    }
-    
-    GRADES {
-        int id PK
-        string name
-        string color
-        int level
-    }
-    
-    GENDERS {
-        int id PK
-        string name
-    }
-    
-    TOURNAMENTS {
-        int id PK
-        string name
-        string description
-        date tournament_date
-        string location
-        datetime registration_deadline
-        int max_participants
-        string status
-        datetime created_at
-        datetime updated_at
-    }
-    
-    CATEGORYTYPES {
-        int id PK
-        string name
-        string description
-    }
-    
-    CATEGORIES {
-        int id PK
-        string name
-        int min_age
-        int max_age
-        string weight_class
-        int tournament_id FK
-        int category_type_id FK
-        int gender_id FK
-        int max_participants
-    }
-    
-    MATCHS {
-        int id PK
-        int category_id FK
-        int participant1_id FK
-        int participant2_id FK
-        int winner_id FK
-        string round_type
-        int round_number
-        string status
-        text notes
-        datetime match_date
-    }
-    
-    PARTICIPANT_CATEGORIES {
-        int participant_id FK
-        int category_id FK
-        datetime registration_date
-        string status
-    }
-
-    %% Relations
-    PARTICIPANT ||--o{ PARTICIPANT_CATEGORIES : "s'inscrit"
-    CATEGORIES ||--o{ PARTICIPANT_CATEGORIES : "contient"
-    PARTICIPANT }o--|| CLUBS : "appartient à"
-    PARTICIPANT }o--|| GRADES : "possède"
-    PARTICIPANT }o--|| GENDERS : "a pour genre"
-    PARTICIPANT }o--|| ROLES : "a pour rôle"
-    TOURNAMENTS ||--o{ CATEGORIES : "contient"
-    CATEGORYTYPES ||--o{ CATEGORIES : "définit"
-    GENDERS ||--o{ CATEGORIES : "spécifie"
-    CATEGORIES ||--o{ MATCHS : "génère"
-    PARTICIPANT ||--o{ MATCHS : "participe comme P1"
-    PARTICIPANT ||--o{ MATCHS : "participe comme P2"
-    PARTICIPANT ||--o{ MATCHS : "gagne"
-```
+![MCD Nippon Kempo Tournament](./docs/mcd-nippon-kempo.png)
 
 ## 📁 Structure du projet
 
@@ -302,11 +192,6 @@ npm run test:e2e
 ```
 
 > Note: La configuration des tests peut nécessiter une adaptation en fonction de l'environnement.
-
-## 📱 Compatibilité
-
-- Navigateurs modernes (Chrome, Firefox, Safari, Edge)
-- Design responsive pour mobile, tablette et desktop
 
 ## 🚀 Déploiement
 
