@@ -1,0 +1,27 @@
+name: Test Simple
+
+on:
+  push:
+    branches: [ main, dev ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Test API exists
+      run: |
+        echo "✅ Dossier API trouvé"
+        ls -la api/
+    
+    - name: Test Frontend exists
+      run: |
+        echo "✅ Dossier Frontend trouvé"
+        ls -la front-quasar/
+    
+    - name: Success
+      run: |
+        echo "🎉 GitHub Actions fonctionne !"
