@@ -1,4 +1,4 @@
-name: CI.YML Pipeline - Tests Complets
+name: CI Pipeline - Tests Complets
 
 on:
   push:
@@ -14,8 +14,10 @@ jobs:
       mysql:
         image: mysql:8.0
         env:
-          MYSQL_ROOT_PASSWORD: rootpassword
-          MYSQL_DATABASE: test_db
+          MYSQL_ROOT_PASSWORD: ${{ secrets.CI_MYSQL_ROOT_PASSWORD }}
+          MYSQL_DATABASE: ${{ secrets.CI_MYSQL_DATABASE }}
+          MYSQL_USER: ${{ secrets.CI_MYSQL_USER }}
+          MYSQL_PASSWORD: ${{ secrets.CI_MYSQL_PASSWORD }}
         ports:
           - 3306:3306
         options: >-
@@ -47,22 +49,24 @@ jobs:
     
     - name: Setup test database
       run: |
-        mysql -h 127.0.0.1 -u root -prootpassword -e "
-        CREATE DATABASE IF NOT EXISTS test_db;
+        mysql -h 127.0.0.1 -u root -p${{ secrets.CI_MYSQL_ROOT_PASSWORD }} -e "
+        CREATE DATABASE IF NOT EXISTS ${{ secrets.CI_MYSQL_DATABASE }};
+        GRANT ALL PRIVILEGES ON ${{ secrets.CI_MYSQL_DATABASE }}.* TO '${{ secrets.CI_MYSQL_USER }}'@'%';
+        FLUSH PRIVILEGES;
         SHOW DATABASES;
         "
     
     - name: Test Database Connection
       env:
         MYSQLHOST: 127.0.0.1
-        MYSQLUSER: root
-        MYSQLPASSWORD: rootpassword
-        MYSQLDATABASE: test_db
+        MYSQLUSER: ${{ secrets.CI_MYSQL_USER }}
+        MYSQLPASSWORD: ${{ secrets.CI_MYSQL_PASSWORD }}
+        MYSQLDATABASE: ${{ secrets.CI_MYSQL_DATABASE }}
         NODE_ENV: test
-        JWT_SECRET: test-secret-for-ci
-        COOKIE_SECRET: test-cookie-secret-with-at-least-32-characters
-        MJ_APIKEY_PUBLIC: test_key
-        MJ_APIKEY_PRIVATE: test_key
+        JWT_SECRET: ${{ secrets.CI_JWT_SECRET }}
+        COOKIE_SECRET: ${{ secrets.CI_COOKIE_SECRET }}
+        MJ_APIKEY_PUBLIC: ${{ secrets.CI_MJ_APIKEY_PUBLIC }}
+        MJ_APIKEY_PRIVATE: ${{ secrets.CI_MJ_APIKEY_PRIVATE }}
       run: |
         cd api
         node -e "
@@ -88,25 +92,25 @@ jobs:
         "
     
     - name: Run API tests
-    env:
-      # Variables MySQL sécurisées depuis vos secrets GitHub
-      MYSQLHOST: 127.0.0.1
-      MYSQLUSER: ${{ secrets.CI_MYSQL_USER }}
-      MYSQLPASSWORD: ${{ secrets.CI_MYSQL_PASSWORD }}
-      MYSQLROOTPASSWORD: ${{ secrets.CI_MYSQL_ROOT_PASSWORD }}
-      MYSQLDATABASE: ${{ secrets.CI_MYSQL_DATABASE }}
-      
-      # Variables d'environnement sécurisées
-      NODE_ENV: test
-      JWT_SECRET: ${{ secrets.CI_JWT_SECRET }}
-      COOKIE_SECRET: ${{ secrets.CI_COOKIE_SECRET }}
-      MJ_APIKEY_PUBLIC: ${{ secrets.CI_MJ_APIKEY_PUBLIC }}
-      MJ_APIKEY_PRIVATE: ${{ secrets.CI_MJ_APIKEY_PRIVATE }}
-    run: |
-      cd api
-      npm run test || echo "Tests completed (may need implementation)"
+      env:
+        # Variables MySQL sécurisées depuis vos secrets GitHub
+        MYSQLHOST: 127.0.0.1
+        MYSQLUSER: ${{ secrets.CI_MYSQL_USER }}
+        MYSQLPASSWORD: ${{ secrets.CI_MYSQL_PASSWORD }}
+        MYSQLROOTPASSWORD: ${{ secrets.CI_MYSQL_ROOT_PASSWORD }}
+        MYSQLDATABASE: ${{ secrets.CI_MYSQL_DATABASE }}
+        
+        # Variables d'environnement sécurisées
+        NODE_ENV: test
+        JWT_SECRET: ${{ secrets.CI_JWT_SECRET }}
+        COOKIE_SECRET: ${{ secrets.CI_COOKIE_SECRET }}
+        MJ_APIKEY_PUBLIC: ${{ secrets.CI_MJ_APIKEY_PUBLIC }}
+        MJ_APIKEY_PRIVATE: ${{ secrets.CI_MJ_APIKEY_PRIVATE }}
+      run: |
+        cd api
+        npm run test || echo "Tests completed (may need implementation)"
 
-  # Job 2 : Tests du Frontend CORRIGÉ
+  # Job 2 : Tests du Frontend
   test-frontend:
     runs-on: ubuntu-latest
     
