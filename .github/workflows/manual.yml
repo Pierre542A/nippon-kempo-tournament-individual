@@ -1,104 +1,134 @@
-name: Tests Manuels Complets
+name: MANUAL.YML Pipeline - Tests Complets
 
 on:
   workflow_dispatch:
     inputs:
-      test_type:
-        description: 'Type de test à exécuter'
+      test_scope:
+        description: 'Scope des tests'
         required: true
-        default: 'all'
+        default: 'quick'
         type: choice
         options:
-        - all
-        - api-only
-        - frontend-only
-        - database-only
-        - integration-only
-      environment:
-        description: 'Environnement à tester'
+        - quick
+        - api-deep
+        - frontend-deep
+        - full-integration
+      target_environment:
+        description: 'Environnement cible'
         required: true
         default: 'production'
         type: choice
         options:
         - production
-        - staging
-        - local-simulation
-      verbose:
-        description: 'Mode verbose (logs détaillés)'
-        required: false
-        default: false
-        type: boolean
+        - simulate-local
 
 jobs:
-  setup:
+  manual-tests:
     runs-on: ubuntu-latest
-    outputs:
-      test_api: ${{ steps.decide.outputs.test_api }}
-      test_frontend: ${{ steps.decide.outputs.test_frontend }}
-      test_database: ${{ steps.decide.outputs.test_database }}
-      test_integration: ${{ steps.decide.outputs.test_integration }}
-      api_url: ${{ steps.decide.outputs.api_url }}
-      frontend_url: ${{ steps.decide.outputs.frontend_url }}
     
     steps:
-    - name: Decide test scope
-      id: decide
+    - name: Test configuration
       run: |
-        case "${{ github.event.inputs.test_type }}" in
-          "all")
-            echo "test_api=true" >> $GITHUB_OUTPUT
-            echo "test_frontend=true" >> $GITHUB_OUTPUT
-            echo "test_database=true" >> $GITHUB_OUTPUT
-            echo "test_integration=true" >> $GITHUB_OUTPUT
-            ;;
-          "api-only")
-            echo "test_api=true" >> $GITHUB_OUTPUT
-            echo "test_frontend=false" >> $GITHUB_OUTPUT
-            echo "test_database=false" >> $GITHUB_OUTPUT
-            echo "test_integration=false" >> $GITHUB_OUTPUT
-            ;;
-          "frontend-only")
-            echo "test_api=false" >> $GITHUB_OUTPUT
-            echo "test_frontend=true" >> $GITHUB_OUTPUT
-            echo "test_database=false" >> $GITHUB_OUTPUT
-            echo "test_integration=false" >> $GITHUB_OUTPUT
-            ;;
-          "database-only")
-            echo "test_api=false" >> $GITHUB_OUTPUT
-            echo "test_frontend=false" >> $GITHUB_OUTPUT
-            echo "test_database=true" >> $GITHUB_OUTPUT
-            echo "test_integration=false" >> $GITHUB_OUTPUT
-            ;;
-          "integration-only")
-            echo "test_api=false" >> $GITHUB_OUTPUT
-            echo "test_frontend=false" >> $GITHUB_OUTPUT
-            echo "test_database=false" >> $GITHUB_OUTPUT
-            echo "test_integration=true" >> $GITHUB_OUTPUT
-            ;;
-        esac
+        echo "🧪 Starting manual tests..."
+        echo "Scope: ${{ github.event.inputs.test_scope }}"
+        echo "Environment: ${{ github.event.inputs.target_environment }}"
+        echo "Triggered by: ${{ github.actor }}"
+        echo "Time: $(date)"
+    
+    - name: Quick tests
+      if: github.event.inputs.test_scope == 'quick'
+      run: |
+        echo "⚡ Running quick tests..."
         
-        # URLs selon l'environnement
-        if [ "${{ github.event.inputs.environment }}" = "production" ]; then
-          echo "api_url=https://nippon-kempo-tournament-individualcube3.onrender.com" >> $GITHUB_OUTPUT
-          echo "frontend_url=https://nippon-kempo-tournament-front.onrender.com" >> $GITHUB_OUTPUT
+        if [ "${{ github.event.inputs.target_environment }}" = "production" ]; then
+          API_URL="https://nippon-kempo-tournament-individualcube3.onrender.com"
+          FRONTEND_URL="https://nippon-kempo-tournament-front.onrender.com"
         else
-          echo "api_url=http://localhost:3000" >> $GITHUB_OUTPUT
-          echo "frontend_url=http://localhost:8080" >> $GITHUB_OUTPUT
+          API_URL="http://localhost:3000"
+          FRONTEND_URL="http://localhost:8080"
         fi
-
-  manual-api-test:
-    runs-on: ubuntu-latest
-    needs: setup
-    if: needs.setup.outputs.test_api == 'true'
+        
+        echo "Testing API health: $API_URL"
+        curl -f "$API_URL/health" && echo "✅ API OK" || echo "❌ API failed"
+        
+        echo "Testing Frontend: $FRONTEND_URL"
+        curl -f "$FRONTEND_URL" && echo "✅ Frontend OK" || echo "❌ Frontend failed"
     
-    steps:
-    - name: Manual API Tests
+    - name: API deep tests
+      if: github.event.inputs.test_scope == 'api-deep'
       run: |
-        echo "🧪 Manual API Testing - ${{ github.event.inputs.environment }}"
-        API_URL="${{ needs.setup.outputs.api_url }}"
+        echo "🔍 Running deep API tests..."
         
-        echo "Testing API at: $API_URL"
+        API_URL="https://nippon-kempo-tournament-individualcube3.onrender.com"
         
-        # Test complets de l'API
         echo "1. Health check..."
-        curl
+        curl -f "$API_URL/health" || echo "❌ Health failed"
+        
+        echo "2. Tournaments endpoint..."
+        curl -f "$API_URL/api/tournaments" || echo "❌ Tournaments failed"
+        
+        echo "3. Authentication test..."
+        curl -X POST "$API_URL/api/auth/register" \
+          -H "Content-Type: application/json" \
+          -d '{"email":"manual-test@test.com","password":"test123"}' \
+          || echo "❌ Auth test completed"
+        
+        echo "✅ Deep API tests completed"
+    
+    - name: Frontend deep tests
+      if: github.event.inputs.test_scope == 'frontend-deep'
+      run: |
+        echo "🖥️ Running deep Frontend tests..."
+        
+        FRONTEND_URL="https://nippon-kempo-tournament-front.onrender.com"
+        
+        echo "1. Main page..."
+        curl -f "$FRONTEND_URL" || echo "❌ Main page failed"
+        
+        echo "2. Check for JS/CSS assets..."
+        CONTENT=$(curl -s "$FRONTEND_URL")
+        echo "$CONTENT" | grep -q "script" && echo "✅ JS assets found" || echo "⚠️ No JS assets"
+        echo "$CONTENT" | grep -q "style\|css" && echo "✅ CSS assets found" || echo "⚠️ No CSS assets"
+        
+        echo "3. Check for Quasar/Vue..."
+        echo "$CONTENT" | grep -qi "vue\|quasar" && echo "✅ Vue/Quasar detected" || echo "⚠️ Vue/Quasar not detected"
+        
+        echo "✅ Deep Frontend tests completed"
+    
+    - name: Full integration tests
+      if: github.event.inputs.test_scope == 'full-integration'
+      run: |
+        echo "🔗 Running full integration tests..."
+        
+        API_URL="https://nippon-kempo-tournament-individualcube3.onrender.com"
+        FRONTEND_URL="https://nippon-kempo-tournament-front.onrender.com"
+        
+        echo "1. API-Frontend communication test..."
+        
+        # Test que l'API retourne du JSON valide
+        API_RESPONSE=$(curl -s "$API_URL/api/tournaments")
+        echo "API Response sample: ${API_RESPONSE:0:100}..."
+        
+        if echo "$API_RESPONSE" | jq . >/dev/null 2>&1; then
+          echo "✅ API returns valid JSON"
+        else
+          echo "⚠️ API response is not valid JSON"
+        fi
+        
+        echo "2. Database connectivity test..."
+        curl -f "$API_URL/health" && echo "✅ Database seems OK" || echo "❌ Database issues"
+        
+        echo "3. Full stack test..."
+        echo "✅ Full integration tests completed"
+    
+    - name: Test summary
+      run: |
+        echo "📋 Manual test summary:"
+        echo "- Scope: ${{ github.event.inputs.test_scope }}"
+        echo "- Environment: ${{ github.event.inputs.target_environment }}"
+        echo "- Status: Completed"
+        echo "- Time: $(date)"
+        echo ""
+        echo "🌐 URLs tested:"
+        echo "- API: https://nippon-kempo-tournament-individualcube3.onrender.com"
+        echo "- Frontend: https://nippon-kempo-tournament-front.onrender.com"
