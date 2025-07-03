@@ -202,14 +202,14 @@ Le projet est déployé avec l'architecture suivante :
 - **CI/CD** : Déploiement automatique via GitHub
 
 URLs de production :
-- Site web : [URL du site déployé]
-- API : [URL de l'API déployée]
+- Site web : https://nippon-kempo-tournament-individual.onrender.com/
+- API : https://nippon-kempo-tournament-individual-cube3.onrender.com/ (/clubs par exemple)
 
 ## 📞 Contact
 
 **SPREDER Pierre**  
 Projet CESI École d'ingénieurs  
-NIPPON KEMPO 2025
+NIPPON KEMPO 2025s
 
 ---
 
