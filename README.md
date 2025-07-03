@@ -165,6 +165,8 @@ nippon-kempo-tournament-individual/
 ├── jsconfig.json                  # Configuration JavaScript
 ├── package-lock.json              # Verrouillage des versions de dépendances
 ├── package.json                   # Dépendances du projet
+├── vercel.json                    # Configuration de déploiement Vercel
+├── MCD_Individuel.png             # Modèle Conceptuel de Données (schéma)
 ├── .env                           # Variables d'environnement générales
 ├── docker-compose.yml             # Configuration Docker Compose
 └── start.bat                      # Script de démarrage pour Windows
