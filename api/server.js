@@ -130,7 +130,98 @@ const init = async () => {
     }
   });
 
+  // 🆕 SWAGGER CONFIGURATION avec gestion d'erreur
+  try {
+    console.log("📚 Configuration de Swagger...");
+    
+    await fastify.register(require('@fastify/swagger'), {
+      openapi: {
+        openapi: '3.0.0',
+        info: {
+          title: 'Nippon Kempo Tournament API',
+          description: 'API de gestion des tournois de Nippon Kempo',
+          version: '1.0.0'
+        },
+        servers: [
+          {
+            url: 'http://localhost:3000',
+            description: 'Serveur de développement'
+          },
+          {
+            url: 'https://nippon-kempo-tournament-individualcube3.onrender.com',
+            description: 'Serveur de production'
+          }
+        ],
+        components: {
+          securitySchemes: {
+            bearerAuth: {
+              type: 'http',
+              scheme: 'bearer',
+              bearerFormat: 'JWT',
+              description: 'Token JWT pour authentification'
+            }
+          }
+        },
+        tags: [
+          { name: 'System', description: 'Endpoints système' },
+          { name: 'Auth', description: 'Authentification' },
+          { name: 'Clubs', description: 'Gestion des clubs' },
+          { name: 'Tournois', description: 'Gestion des tournois' },
+          { name: 'Grades', description: 'Gestion des grades' },
+          { name: 'Import', description: 'Import de données' },
+          { name: 'Reset Password', description: 'Réinitialisation mot de passe' }
+        ]
+      }
+    });
+
+    await fastify.register(require('@fastify/swagger-ui'), {
+      routePrefix: '/docs',
+      uiConfig: {
+        docExpansion: 'list',
+        deepLinking: false
+      },
+      staticCSP: true,
+      transformSpecificationClone: true
+    });
+    
+    console.log("✅ Swagger configuré avec succès");
+  } catch (swaggerError) {
+    console.warn("⚠️ Erreur Swagger:", swaggerError.message);
+    console.log("🔄 API démarrée sans documentation Swagger");
+  }
+
   fastify.decorate("jwtSecret", process.env.JWT_SECRET || "default-jwt-secret-change-in-production");
+
+  // Health check endpoint (simple, sans schema complexe pour éviter les erreurs)
+  fastify.get('/health', async (request, reply) => {
+    try {
+      await fastify.mysql.query('SELECT 1');
+      return { 
+        status: 'ok', 
+        timestamp: new Date().toISOString(),
+        database: 'connected',
+        version: '1.0.0'
+      };
+    } catch (error) {
+      reply.status(500);
+      return { 
+        status: 'error', 
+        timestamp: new Date().toISOString(),
+        database: 'disconnected',
+        error: error.message
+      };
+    }
+  });
+
+  // Route d'accueil simple
+  fastify.get('/', async (request, reply) => {
+    return {
+      message: 'Bienvenue sur l\'API Nippon Kempo Tournament',
+      documentation: '/docs',
+      health: '/health',
+      version: '1.0.0'
+    };
+  });
 
   // Rate limiter
   fastify.addHook("onRequest", rateLimit);
@@ -144,29 +235,57 @@ const init = async () => {
 
   await fastify.passwordResetService.initialize();
 
-  // Routes principales
-  fastify.register(userRoutes);
-  fastify.register(gradeRoutes);
-  fastify.register(clubRoutes);
-  fastify.register(passwordResetRoutes);
-  fastify.register(importRoutes);
+  // Routes principales avec gestion d'erreur
+  try {
+    console.log("📡 Enregistrement des routes...");
+    
+    await fastify.register(userRoutes);
+    console.log("✅ Routes utilisateurs enregistrées");
+    
+    await fastify.register(gradeRoutes);
+    console.log("✅ Routes grades enregistrées");
+    
+    await fastify.register(clubRoutes);
+    console.log("✅ Routes clubs enregistrées");
+    
+    await fastify.register(passwordResetRoutes);
+    console.log("✅ Routes reset password enregistrées");
+    
+    await fastify.register(importRoutes);
+    console.log("✅ Routes import enregistrées");
+    
+  } catch (routeError) {
+    console.error("❌ Erreur lors de l'enregistrement des routes:", routeError.message);
+    console.error("Stack:", routeError.stack);
+    throw routeError;
+  }
 
   isReady = true;
+  console.log("🎉 Initialisation terminée avec succès");
 };
 
 // Dev local
 if (require.main === module) {
   const start = async () => {
     try {
+      console.log("🚀 Démarrage du serveur...");
       await init();
       const PORT = process.env.PORT || 3000;
       await fastify.listen({
         port: PORT,
         host: "0.0.0.0"
       });
-      fastify.log.info(`Serveur démarré sur le port ${PORT}`);
+      console.log(`✅ Serveur démarré sur le port ${PORT}`);
+      console.log(`📚 Documentation Swagger: http://localhost:${PORT}/docs`);
+      console.log(`🔍 Health check: http://localhost:${PORT}/health`);
     } catch (err) {
-      fastify.log.error("Server startup error:", err);
+      console.error("❌ Erreur de démarrage détaillée:", err.message);
+      console.error("❌ Stack trace:", err.stack);
+      
+      // Informations de debug supplémentaires
+      if (err.code) console.error("❌ Code d'erreur:", err.code);
+      if (err.statusCode) console.error("❌ Status code:", err.statusCode);
+      
       process.exit(1);
     }
   };
