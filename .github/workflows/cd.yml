@@ -1,4 +1,4 @@
-name: CD.YML Pipeline - Tests Complets
+name: CD - Production Deployment
 
 on:
   push:
@@ -21,6 +21,7 @@ jobs:
       api_changed: ${{ steps.changes.outputs.api_changed }}
       frontend_changed: ${{ steps.changes.outputs.frontend_changed }}
       changes_summary: ${{ steps.changes.outputs.changes_summary }}
+      deployment_complexity: ${{ steps.changes.outputs.deployment_complexity }}
     
     steps:
     - name: 📥 Checkout with history
@@ -40,6 +41,7 @@ jobs:
           echo "api_changed=true" >> $GITHUB_OUTPUT
           echo "frontend_changed=true" >> $GITHUB_OUTPUT
           echo "changes_summary=🚀 Manual force deployment" >> $GITHUB_OUTPUT
+          echo "deployment_complexity=high" >> $GITHUB_OUTPUT
           exit 0
         fi
         
@@ -49,11 +51,15 @@ jobs:
         CONFIG_FILES=$(git diff --name-only HEAD^ HEAD | grep -E "^(docker-compose\.yml|\.env\.example|package\.json)$" | wc -l)
         WORKFLOW_FILES=$(git diff --name-only HEAD^ HEAD | grep "^\.github/workflows/" | wc -l)
         
+        # Analyser la complexité des changements
+        CRITICAL_FILES=$(git diff --name-only HEAD^ HEAD | grep -E "(index\.html|quasar\.config|server\.js|package\.json)" | wc -l)
+        
         echo "📊 Changes detected:"
         echo "- API files: $API_FILES"
         echo "- Frontend files: $FRONTEND_FILES"  
         echo "- Config files: $CONFIG_FILES"
         echo "- Workflow files: $WORKFLOW_FILES"
+        echo "- Critical files: $CRITICAL_FILES"
         
         # Décisions de déploiement
         if [ $API_FILES -gt 0 ]; then
@@ -68,6 +74,18 @@ jobs:
           echo "🔄 Frontend deployment needed"
         else
           echo "frontend_changed=false" >> $GITHUB_OUTPUT
+        fi
+        
+        # Déterminer la complexité du déploiement
+        if [ $CRITICAL_FILES -gt 0 ]; then
+          echo "deployment_complexity=high" >> $GITHUB_OUTPUT
+          echo "⚠️ Critical files changed - extended wait time needed"
+        elif [ $API_FILES -gt 0 ] && [ $FRONTEND_FILES -gt 0 ]; then
+          echo "deployment_complexity=medium" >> $GITHUB_OUTPUT
+          echo "🔄 Both components changing - moderate wait time"
+        else
+          echo "deployment_complexity=low" >> $GITHUB_OUTPUT
+          echo "⚡ Simple changes - standard wait time"
         fi
         
         TOTAL_RELEVANT=$((API_FILES + FRONTEND_FILES + CONFIG_FILES))
@@ -96,26 +114,37 @@ jobs:
         echo "- Changes: ${{ needs.change-detection.outputs.changes_summary }}"
         echo "- API deployment: ${{ needs.change-detection.outputs.api_changed }}"
         echo "- Frontend deployment: ${{ needs.change-detection.outputs.frontend_changed }}"
+        echo "- Complexity: ${{ needs.change-detection.outputs.deployment_complexity }}"
         echo "- Commit: ${{ github.sha }}"
         echo "- Triggered by: ${{ github.actor }}"
         echo ""
         echo "📡 Render will automatically deploy based on this main branch push"
     
-    - name: ⏳ Wait for Render auto-deployment
+    - name: ⏳ Intelligent wait for Render auto-deployment
       run: |
         echo "⏳ Waiting for Render to process deployment..."
+        COMPLEXITY="${{ needs.change-detection.outputs.deployment_complexity }}"
         
-        # Temps d'attente adaptatif selon les composants changés
-        if [ "${{ needs.change-detection.outputs.api_changed }}" = "true" ] && [ "${{ needs.change-detection.outputs.frontend_changed }}" = "true" ]; then
-          echo "🔄 Both API and Frontend changed - waiting 180 seconds"
-          sleep 180
-        elif [ "${{ needs.change-detection.outputs.api_changed }}" = "true" ]; then
-          echo "🔄 API changed - waiting 120 seconds"
-          sleep 120
-        else
-          echo "🔄 Frontend only - waiting 60 seconds"
-          sleep 60
-        fi
+        # Temps d'attente intelligent selon la complexité
+        case "$COMPLEXITY" in
+          "high")
+            echo "🔄 High complexity deployment (critical files) - waiting 240 seconds"
+            sleep 240
+            ;;
+          "medium")
+            echo "🔄 Medium complexity deployment (both components) - waiting 180 seconds"
+            sleep 180
+            ;;
+          "low")
+            if [ "${{ needs.change-detection.outputs.api_changed }}" = "true" ]; then
+              echo "🔄 API changes - waiting 120 seconds"
+              sleep 120
+            else
+              echo "🔄 Frontend changes only - waiting 90 seconds"
+              sleep 90
+            fi
+            ;;
+        esac
         
         echo "✅ Initial deployment wait completed"
 
@@ -133,18 +162,27 @@ jobs:
         echo "🔍 Verifying API deployment..."
         API_URL="https://nippon-kempo-tournament-individualcube3.onrender.com"
         
-        for attempt in {1..10}; do
-          echo "🧪 Testing API health (attempt $attempt/10)..."
+        # Attente supplémentaire pour les déploiements complexes
+        if [ "${{ needs.change-detection.outputs.deployment_complexity }}" = "high" ]; then
+          echo "⏳ High complexity detected - additional 60 second wait..."
+          sleep 60
+        fi
+        
+        for attempt in {1..12}; do
+          echo "🧪 Testing API health (attempt $attempt/12)..."
           
-          if curl -f -s "$API_URL/health" >/dev/null 2>&1; then
-            echo "✅ API health check passed"
+          # Test avec timeout et gestion des erreurs plus robuste
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/health" --max-time 30 2>/dev/null || echo "000")
+          
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ API health check passed (HTTP $HTTP_CODE)"
             
             # Test endpoints critiques
             echo "🧪 Testing critical API endpoints..."
-            curl -f "$API_URL/api/tournaments" >/dev/null && echo "✅ Tournaments endpoint OK" || echo "⚠️ Tournaments endpoint issue"
+            curl -f "$API_URL/api/tournaments" --max-time 30 >/dev/null && echo "✅ Tournaments endpoint OK" || echo "⚠️ Tournaments endpoint issue"
             
             # Test que l'API retourne du JSON valide
-            API_RESPONSE=$(curl -s "$API_URL/api/tournaments" 2>/dev/null)
+            API_RESPONSE=$(curl -s "$API_URL/api/tournaments" --max-time 30 2>/dev/null)
             if echo "$API_RESPONSE" | jq . >/dev/null 2>&1; then
               echo "✅ API returns valid JSON"
             else
@@ -153,11 +191,11 @@ jobs:
             
             break
           else
-            if [ $attempt -eq 10 ]; then
-              echo "❌ API verification failed after 10 attempts"
+            if [ $attempt -eq 12 ]; then
+              echo "❌ API verification failed after 12 attempts (last HTTP code: $HTTP_CODE)"
               exit 1
             else
-              echo "⏳ API not ready yet, waiting 30 seconds..."
+              echo "⏳ API returned HTTP $HTTP_CODE, waiting 30 seconds... (attempt $attempt/12)"
               sleep 30
             fi
           fi
@@ -167,17 +205,26 @@ jobs:
       if: needs.change-detection.outputs.frontend_changed == 'true'
       run: |
         echo "🔍 Verifying Frontend deployment..."
-        FRONTEND_URL="https://nippon-kempo-tournament-front.onrender.com"
+        FRONTEND_URL="https://nippon-kempo-tournament-individual.onrender.com"
         
-        for attempt in {1..10}; do
-          echo "🧪 Testing Frontend accessibility (attempt $attempt/10)..."
+        # Attente supplémentaire pour les déploiements complexes
+        if [ "${{ needs.change-detection.outputs.deployment_complexity }}" = "high" ]; then
+          echo "⏳ High complexity detected - additional 60 second wait..."
+          sleep 60
+        fi
+        
+        for attempt in {1..15}; do
+          echo "🧪 Testing Frontend accessibility (attempt $attempt/15)..."
           
-          if curl -f -s "$FRONTEND_URL" >/dev/null 2>&1; then
-            echo "✅ Frontend is accessible"
+          # Test avec timeout et vérification HTTP code
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$FRONTEND_URL" --max-time 30 2>/dev/null || echo "000")
+          
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Frontend is accessible (HTTP $HTTP_CODE)"
             
             # Vérifier le contenu de la page
-            CONTENT=$(curl -s "$FRONTEND_URL" 2>/dev/null)
-            if echo "$CONTENT" | grep -qi "nippon.*kempo\|tournament"; then
+            CONTENT=$(curl -s "$FRONTEND_URL" --max-time 30 2>/dev/null)
+            if echo "$CONTENT" | grep -qi "nippon.*kempo\|tournament\|html\|<!doctype"; then
               echo "✅ Frontend content verification passed"
             else
               echo "⚠️ Frontend content verification failed"
@@ -192,11 +239,15 @@ jobs:
             
             break
           else
-            if [ $attempt -eq 10 ]; then
-              echo "❌ Frontend verification failed after 10 attempts"
+            if [ $attempt -eq 15 ]; then
+              echo "❌ Frontend verification failed after 15 attempts (last HTTP code: $HTTP_CODE)"
+              echo "🔍 Troubleshooting info:"
+              echo "- Check Render dashboard for build logs"
+              echo "- Verify if build completed successfully"
+              echo "- Check for any syntax errors in modified files"
               exit 1
             else
-              echo "⏳ Frontend not ready yet, waiting 30 seconds..."
+              echo "⏳ Frontend returned HTTP $HTTP_CODE, waiting 30 seconds... (attempt $attempt/15)"
               sleep 30
             fi
           fi
@@ -207,22 +258,24 @@ jobs:
         echo "🔗 Testing full stack integration..."
         
         API_URL="https://nippon-kempo-tournament-individualcube3.onrender.com"
-        FRONTEND_URL="https://nippon-kempo-tournament-front.onrender.com"
+        FRONTEND_URL="https://nippon-kempo-tournament-individual.onrender.com"
         
         echo "🧪 Testing API-Frontend communication..."
         
         # Vérifier que l'API est accessible depuis l'extérieur
-        if curl -f -s "$API_URL/health" >/dev/null; then
+        API_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/health" --max-time 30 2>/dev/null || echo "000")
+        if [ "$API_STATUS" = "200" ]; then
           echo "✅ API externally accessible"
         else
-          echo "⚠️ API external access issue"
+          echo "⚠️ API external access issue (HTTP $API_STATUS)"
         fi
         
         # Vérifier que le frontend peut charger
-        if curl -f -s "$FRONTEND_URL" >/dev/null; then
+        FRONTEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$FRONTEND_URL" --max-time 30 2>/dev/null || echo "000")
+        if [ "$FRONTEND_STATUS" = "200" ]; then
           echo "✅ Frontend externally accessible"
         else
-          echo "⚠️ Frontend external access issue"
+          echo "⚠️ Frontend external access issue (HTTP $FRONTEND_STATUS)"
         fi
         
         echo "✅ Integration verification completed"
@@ -251,9 +304,10 @@ jobs:
         elif [ "${{ needs.deployment-verification.result }}" = "success" ]; then
           echo "🎉 DEPLOYMENT SUCCESSFUL!"
           echo "📋 Changes: ${{ needs.change-detection.outputs.changes_summary }}"
+          echo "🔧 Complexity: ${{ needs.change-detection.outputs.deployment_complexity }}"
           echo ""
           echo "🌐 Live URLs:"
-          echo "- 🖥️  Frontend: https://nippon-kempo-tournament-front.onrender.com"
+          echo "- 🖥️  Frontend: https://nippon-kempo-tournament-individual.onrender.com"
           echo "- 🔗 API: https://nippon-kempo-tournament-individualcube3.onrender.com"
           echo ""
           echo "📊 Components deployed:"
@@ -262,12 +316,14 @@ jobs:
         else
           echo "❌ DEPLOYMENT FAILED!"
           echo "📋 Attempted changes: ${{ needs.change-detection.outputs.changes_summary }}"
+          echo "🔧 Complexity: ${{ needs.change-detection.outputs.deployment_complexity }}"
           echo ""
           echo "🔍 Troubleshooting steps:"
           echo "1. Check Render dashboard for deployment logs"
           echo "2. Verify environment variables in Render"
           echo "3. Check Railway database connectivity"
           echo "4. Review recent code changes for issues"
+          echo "5. For critical file changes (index.html, configs), verify syntax"
           echo ""
           echo "📞 Support: Check GitHub Actions logs above for detailed error information"
         fi
