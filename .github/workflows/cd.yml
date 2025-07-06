@@ -160,7 +160,7 @@ jobs:
       if: needs.change-detection.outputs.api_changed == 'true'
       run: |
         echo "🔍 Verifying API deployment..."
-        API_URL="https://nippon-kempo-tournament-individualcube3.onrender.com"
+        API_URL="https://nippon-kempo-tournament-individual-cube3.onrender.com"
         
         # Attente supplémentaire pour les déploiements complexes
         if [ "${{ needs.change-detection.outputs.deployment_complexity }}" = "high" ]; then
@@ -172,7 +172,7 @@ jobs:
           echo "🧪 Testing API health (attempt $attempt/12)..."
           
           # Test avec timeout et gestion des erreurs plus robuste
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/health" --max-time 30 2>/dev/null || echo "000")
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/" --max-time 30 2>/dev/null || echo "000")
           
           if [ "$HTTP_CODE" = "200" ]; then
             echo "✅ API health check passed (HTTP $HTTP_CODE)"
@@ -257,13 +257,13 @@ jobs:
       run: |
         echo "🔗 Testing full stack integration..."
         
-        API_URL="https://nippon-kempo-tournament-individualcube3.onrender.com"
+        API_URL="https://nippon-kempo-tournament-individual-cube3.onrender.com"
         FRONTEND_URL="https://nippon-kempo-tournament-individual.onrender.com"
         
         echo "🧪 Testing API-Frontend communication..."
         
         # Vérifier que l'API est accessible depuis l'extérieur
-        API_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/health" --max-time 30 2>/dev/null || echo "000")
+        API_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/" --max-time 30 2>/dev/null || echo "000")
         if [ "$API_STATUS" = "200" ]; then
           echo "✅ API externally accessible"
         else

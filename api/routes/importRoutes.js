@@ -2,11 +2,13 @@
 const TournamentImportController = require('../controllers/tournamentImportController');
 
 module.exports = async function (fastify) {
-  // Créer une instance du contrôleur
   const tournamentImportController = new TournamentImportController(fastify);
-  
-  // Enregistrer la route
-  fastify.post('/imports/tournament', (req, reply) => {
-    return tournamentImportController.importTournament(req, reply);
-  });
+
+  fastify.post('/imports/tournament', {
+    schema: {
+      description: 'Importer les données d\'un tournoi',
+      tags: ['Import'],
+      response: { 200: { type: 'object' } }
+    }
+  }, (req, reply) => tournamentImportController.importTournament(req, reply));
 };
