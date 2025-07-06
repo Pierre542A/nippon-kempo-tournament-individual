@@ -18,6 +18,10 @@ const clubRoutes = require("./routes/clubRoutes");
 const passwordResetRoutes = require("./routes/passwordReset");
 const importRoutes = require("./routes/importRoutes");
 
+fastify.get('/', async (req, reply) => {
+  reply.send({ message: 'API is running' });
+});
+
 const cors = require("@fastify/cors");
 const cookie = require("@fastify/cookie");
 
