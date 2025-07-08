@@ -1,32 +1,22 @@
-// routes/passwordReset.js
+// routes/passwordReset.js - Nouvelle approche
 module.exports = async function (fastify, options) {
-    fastify.post("/request-password-reset", {
-        schema: {
-            description: 'Demande de réinitialisation du mot de passe',
-            tags: ['Password Reset'],
-            response: { 200: { type: 'object' } }
-        }
-    }, (req, reply) => {
+    // Route de demande de réinitialisation - inchangée
+    fastify.post("/request-password-reset", (req, reply) => {
         return fastify.passwordResetController.requestPasswordReset(req, reply);
     });
 
-    fastify.post("/reset-password", {
-        schema: {
-            description: 'Réinitialiser le mot de passe',
-            tags: ['Password Reset'],
-            response: { 200: { type: 'object' } }
-        }
-    }, (req, reply) => {
+    // Route de réinitialisation - inchangée
+    fastify.post("/reset-password", (req, reply) => {
         return fastify.passwordResetController.resetPassword(req, reply);
     });
 
-    fastify.post("/verify-reset-token", {
-        schema: {
-            description: 'Vérification du token de réinitialisation',
-            tags: ['Password Reset'],
-            response: { 200: { type: 'object' } }
-        }
-    }, (req, reply) => {
+    // NOUVELLE route de vérification - utilise POST avec le token dans le corps
+    fastify.post("/verify-reset-token", (req, reply) => {
         return fastify.passwordResetController.verifyResetToken(req, reply);
     });
-};
+
+    // Test simple pour vérifier si les routes fonctionnent
+    fastify.get("/password-reset-ping", (req, reply) => {
+        return reply.send({ success: true, message: "Routes de réinitialisation connectées" });
+    });
+}
