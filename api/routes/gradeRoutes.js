@@ -4,7 +4,11 @@ module.exports = async function (fastify) {
     const gradeController = new GradeController(fastify);
 
     // Route pour récupérer tous les grades
-    fastify.get('/grades', async (req, reply) => {
+    fastify.get('/grades', {
+        schema: {
+            tags: ['Grades']
+        }
+    }, async (req, reply) => {
         return gradeController.getAllGrades(req, reply);
     });
 };

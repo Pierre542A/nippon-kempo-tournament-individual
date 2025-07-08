@@ -136,6 +136,42 @@ const init = async () => {
 
   fastify.decorate("jwtSecret", process.env.JWT_SECRET || "default-jwt-secret-change-in-production");
 
+  // Swagger
+  await fastify.register(require('@fastify/swagger'), {
+    swagger: {
+      info: {
+        title: 'Tournament API',
+        description: 'API pour la gestion des tournois de Nippon Kempo',
+        version: '1.0.0'
+      },
+      host: isProduction ? 'nippon-kempo-tournament-individual.onrender.com' : 'localhost:3000',
+      schemes: [isProduction ? 'https' : 'http'],
+      consumes: ['application/json'],
+      produces: ['application/json'],
+      securityDefinitions: {
+        Bearer: {
+          type: 'apiKey',
+          name: 'Authorization',
+          in: 'header'
+        }
+      }
+    }
+  });
+
+  await fastify.register(require('@fastify/swagger-ui'), {
+    routePrefix: '/docs',
+    uiConfig: {
+      docExpansion: 'full',
+      deepLinking: false
+    },
+    staticCSP: true,
+    transformStaticCSP: (header) => header,
+    transformSpecification: (swaggerObject, request, reply) => {
+      return swaggerObject;
+    },
+    transformSpecificationClone: true
+  });
+
   // Rate limiter
   fastify.addHook("onRequest", rateLimit);
 

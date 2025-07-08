@@ -20,6 +20,8 @@
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.11.4",
     "node-mailjet": "^6.0.6",
-    "nodemailer": "^6.1.16"
+    "nodemailer": "^6.1.16",
+    "@fastify/swagger": "^9.5.1",
+    "@fastify/swagger-ui": "^5.2.3"
   }
 }
