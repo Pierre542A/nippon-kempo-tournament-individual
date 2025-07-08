@@ -12,6 +12,8 @@
     "@fastify/cookie": "^6.0.0",
     "@fastify/cors": "^10.1.0",
     "@fastify/static": "^8.0.2",
+    "@fastify/swagger": "^9.5.1",
+    "@fastify/swagger-ui": "^5.2.3",
     "axios": "^1.7.7",
     "bcrypt": "^5.1.1",
     "dotenv": "^16.4.5",
@@ -20,8 +22,6 @@
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.11.4",
     "node-mailjet": "^6.0.6",
-    "nodemailer": "^6.1.16",
-    "@fastify/swagger": "^9.5.1",
-    "@fastify/swagger-ui": "^5.2.3"
+    "nodemailer": "^6.1.16"
   }
 }
